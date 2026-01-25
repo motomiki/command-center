@@ -1,0 +1,197 @@
+/**
+ * レスポンシブデザインシステム
+ * Tailwind標準ブレークポイントに基づいた統一されたメディアクエリとユーティリティ
+ */
+
+/* CSS変数: ブレークポイント */
+:root {
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+}
+
+/* CSS変数: フォントサイズ（レスポンシブ） */
+:root {
+  --font-size-base-mobile: 14px;
+  --font-size-base-tablet: 16px;
+  --font-size-base-desktop: 16px;
+  
+  --font-size-h1-mobile: 2rem;
+  --font-size-h1-tablet: 2.5rem;
+  --font-size-h1-desktop: 3rem;
+  
+  --font-size-h2-mobile: 1.5rem;
+  --font-size-h2-tablet: 2rem;
+  --font-size-h2-desktop: 2.5rem;
+  
+  --font-size-h3-mobile: 1.25rem;
+  --font-size-h3-tablet: 1.5rem;
+  --font-size-h3-desktop: 1.75rem;
+}
+
+/* CSS変数: スペーシング（レスポンシブ） */
+:root {
+  --spacing-xs-mobile: 0.25rem;
+  --spacing-xs-tablet: 0.5rem;
+  --spacing-xs-desktop: 0.5rem;
+  
+  --spacing-sm-mobile: 0.5rem;
+  --spacing-sm-tablet: 0.75rem;
+  --spacing-sm-desktop: 1rem;
+  
+  --spacing-md-mobile: 1rem;
+  --spacing-md-tablet: 1.5rem;
+  --spacing-md-desktop: 2rem;
+  
+  --spacing-lg-mobile: 1.5rem;
+  --spacing-lg-tablet: 2rem;
+  --spacing-lg-desktop: 3rem;
+  
+  --spacing-xl-mobile: 2rem;
+  --spacing-xl-tablet: 3rem;
+  --spacing-xl-desktop: 4rem;
+}
+
+/* ベースフォントサイズの設定 */
+html {
+  font-size: var(--font-size-base-mobile);
+}
+
+@media (min-width: 640px) {
+  html {
+    font-size: var(--font-size-base-tablet);
+  }
+}
+
+@media (min-width: 1024px) {
+  html {
+    font-size: var(--font-size-base-desktop);
+  }
+}
+
+/* タッチターゲットサイズの確保 */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ホバーエフェクトの制限（タッチデバイスでは無効化） */
+@media (hover: hover) and (pointer: fine) {
+  .hover-only:hover {
+    /* ホバーエフェクトは各コンポーネントで定義 */
+  }
+}
+
+/* タッチデバイス用のスタイル */
+@media (pointer: coarse) {
+  .touch-friendly {
+    /* タッチ操作を考慮したスタイル */
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+  }
+  
+  /* タッチデバイスではホバーエフェクトを無効化 */
+  .hover-only:hover {
+    transform: none !important;
+    box-shadow: inherit !important;
+  }
+}
+
+/* アクセシビリティ: アニメーションを好まないユーザー向け */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* フォーカス表示の改善 */
+:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* 大画面での最大幅制限 */
+.container-responsive {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 640px) {
+  .container-responsive {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container-responsive {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .container-responsive {
+    max-width: 1400px;
+  }
+}
+
+@media (min-width: 1536px) {
+  .container-responsive {
+    max-width: 1600px;
+  }
+}
+
+/* 横画面（ランドスケープ）対応 */
+@media (orientation: landscape) and (max-height: 500px) {
+  /* モバイル横画面での調整 */
+  .landscape-compact {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+}
+
+/* ユーティリティクラス: レスポンシブ表示制御 */
+.show-mobile {
+  display: block;
+}
+
+@media (min-width: 768px) {
+  .show-mobile {
+    display: none;
+  }
+}
+
+.show-tablet-up {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .show-tablet-up {
+    display: block;
+  }
+}
+
+.show-desktop-up {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .show-desktop-up {
+    display: block;
+  }
+}
+
