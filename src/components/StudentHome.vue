@@ -16,6 +16,7 @@ import {
   getMinecraftStats,
 } from '@/utils/studentStats';
 import { getRarityDisplayName } from '@/utils/rarity';
+import { placeholders } from '@/utils/placeholder';
 
 interface Props {
   student: Student;
@@ -121,7 +122,7 @@ const handleNavigateToGacha = () => {
       <div class="avatar-container">
         <div class="avatar-wrapper">
           <img
-            :src="student.avatarUrl || 'https://via.placeholder.com/150/667eea/FFFFFF?text=アバター'"
+            :src="student.avatarUrl || placeholders.avatar('アバター')"
             :alt="student.name"
             class="avatar-image"
             loading="lazy"

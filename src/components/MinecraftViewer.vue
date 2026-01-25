@@ -2,27 +2,51 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import '@google/model-viewer';
 import type { CardData } from '@/types/card';
+import { getAssetUrl } from '@/utils/assetStore';
 
-// Propsの定義: CardDataを直接受け取るか、個別プロパティを受け取る
+// Propsの定義
 interface Props {
-  // パターン1: CardDataを直接受け取る
   card?: CardData;
-  // パターン2: 個別プロパティ（後方互換性のため）
-  modelUrl?: string;      // .glbファイルのURL
-  screenshotUrl?: string;  // スクリーンショットのURL
-  makeCodeUrl?: string;    // MakeCodeの共有URL
-  alt?: string;           // アクセシビリティ用の代替テキスト
-  title?: string;         // 作品タイトル（表示用）
+  modelUrl?: string;
+  screenshotUrl?: string;
+  makeCodeUrl?: string;
+  alt?: string;
+  title?: string;
 }
 
 const props = defineProps<Props>();
 
-// CardDataから値を取得するか、個別プロパティから取得する
-const modelUrl = computed(() => props.card?.minecraftData?.modelUrl ?? props.modelUrl ?? '');
-const screenshotUrl = computed(() => props.card?.minecraftData?.screenshotUrl ?? props.screenshotUrl);
-const makeCodeUrl = computed(() => props.card?.minecraftData?.makeCodeUrl ?? props.makeCodeUrl);
+// Raw URLs from props
+const rawModelUrl = computed(() => props.card?.minecraftData?.modelUrl ?? props.modelUrl ?? '');
+const rawScreenshotUrl = computed(() => props.card?.minecraftData?.screenshotUrl ?? props.screenshotUrl);
+
+// Constants
+const DEFAULT_MAKECODE_URL = 'https://minecraft.makecode.com/';
+
+const makeCodeUrl = computed(() => props.card?.minecraftData?.makeCodeUrl ?? props.makeCodeUrl ?? DEFAULT_MAKECODE_URL);
 const altText = computed(() => props.card?.title ?? props.alt ?? props.title ?? 'Minecraft作品');
 const displayTitle = computed(() => props.card?.title ?? props.title);
+
+// Resolved URLs (for IDB)
+const resolvedModelUrl = ref('');
+const resolvedScreenshotUrl = ref('');
+
+// IDB Resolution Logic
+watch(rawModelUrl, async (newUrl) => {
+  if (newUrl?.startsWith('idb://')) {
+    resolvedModelUrl.value = await getAssetUrl(newUrl.replace('idb://', '')) || '';
+  } else {
+    resolvedModelUrl.value = newUrl;
+  }
+}, { immediate: true });
+
+watch(rawScreenshotUrl, async (newUrl) => {
+  if (newUrl?.startsWith('idb://')) {
+    resolvedScreenshotUrl.value = await getAssetUrl(newUrl.replace('idb://', '')) || '';
+  } else {
+    resolvedScreenshotUrl.value = newUrl || '';
+  }
+}, { immediate: true });
 
 // ローディング状態の管理
 const isLoading = ref(true);
@@ -48,7 +72,6 @@ const handleError = () => {
 const retryLoad = () => {
   isLoading.value = true;
   hasError.value = false;
-  // model-viewerを再読み込みするために、srcを一時的に変更して戻す
   if (modelViewerRef.value) {
     const viewer = modelViewerRef.value as any;
     if (viewer.src) {
@@ -61,18 +84,17 @@ const retryLoad = () => {
   }
 };
 
-// modelUrlが変更されたときにローディング状態をリセット
+// resolvedModelUrlが変更されたときにローディング状態をリセット
 const resetLoadingState = () => {
-  if (modelUrl.value && isVisible.value) {
+  if (resolvedModelUrl.value && isVisible.value) {
     isLoading.value = true;
     hasError.value = false;
   } else {
-    // modelUrlが空の場合、またはまだビューポートに入っていない場合はローディングを停止
     isLoading.value = false;
   }
 };
 
-// Intersection Observer の実装
+// Intersection Observer
 onMounted(() => {
   if (!containerRef.value) return;
   
@@ -81,13 +103,13 @@ onMounted(() => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           isVisible.value = true;
-          observer?.disconnect(); // 一度読み込んだら監視を停止
+          observer?.disconnect();
         }
       });
     },
     {
-      rootMargin: '50px', // 50px手前から読み込み開始
-      threshold: 0.1,     // 10%表示された時点で読み込み
+      rootMargin: '50px',
+      threshold: 0.1,
     }
   );
   
@@ -98,8 +120,8 @@ onUnmounted(() => {
   observer?.disconnect();
 });
 
-// modelUrlとisVisibleの両方を監視
-watch([modelUrl, isVisible], () => {
+// Watch resolved url instead of raw
+watch([resolvedModelUrl, isVisible], () => {
   resetLoadingState();
 }, { immediate: true });
 </script>
@@ -107,12 +129,12 @@ watch([modelUrl, isVisible], () => {
 <template>
   <div ref="containerRef" class="minecraft-viewer-container">
     <!-- プレースホルダー（まだ読み込まれていない場合） -->
-    <div v-if="!isVisible && modelUrl" class="placeholder-container">
+    <div v-if="!isVisible && rawModelUrl" class="placeholder-container">
       <div class="placeholder-icon">🏗️</div>
       <p class="placeholder-text">スクロールすると3Dモデルが表示されます</p>
-      <div v-if="screenshotUrl" class="placeholder-screenshot">
+      <div v-if="resolvedScreenshotUrl" class="placeholder-screenshot">
         <img 
-          :src="screenshotUrl" 
+          :src="resolvedScreenshotUrl" 
           :alt="`${displayTitle || 'Minecraft作品'}のプレビュー`"
           class="placeholder-screenshot-image"
         />
@@ -120,29 +142,29 @@ watch([modelUrl, isVisible], () => {
     </div>
 
     <!-- ローディングインジケータ -->
-    <div v-if="isLoading && modelUrl && isVisible" class="loading-container">
+    <div v-if="isLoading && resolvedModelUrl && isVisible" class="loading-container">
       <div class="loading-spinner"></div>
       <p class="loading-text">まいんくらふとのせかいをよみこみちゅう...</p>
     </div>
 
     <!-- エラー表示（スクリーンショットがない場合、またはmodelUrlがない場合） -->
-    <div v-if="(hasError || (!modelUrl && !screenshotUrl)) && !screenshotUrl" class="error-container">
+    <div v-if="(hasError || (!resolvedModelUrl && !resolvedScreenshotUrl)) && !resolvedScreenshotUrl" class="error-container">
       <div class="error-icon">🏗️</div>
       <p class="error-text">
-        {{ modelUrl ? 'せかいをみつけられなかったよ...' : 'まいんくらふとのせかいはまだないよ' }}
+        {{ resolvedModelUrl ? 'せかいをみつけられなかったよ...' : 'まいんくらふとのせかいはまだないよ' }}
       </p>
-      <button v-if="modelUrl" @click="retryLoad" class="retry-button">もういちどためす</button>
+      <button v-if="resolvedModelUrl" @click="retryLoad" class="retry-button">もういちどためす</button>
     </div>
 
-    <!-- 3Dモデルビューアー（ビューポートに入った時だけ表示） -->
+    <!-- 3Dモデルビューアー -->
     <div 
-      v-if="modelUrl && !hasError && isVisible" 
+      v-if="resolvedModelUrl && !hasError && isVisible" 
       class="model-viewer-wrapper"
       :class="{ 'fade-in': !isLoading }"
     >
       <model-viewer
         ref="modelViewerRef"
-        :src="modelUrl"
+        :src="resolvedModelUrl"
         :alt="altText"
         :auto-rotate="false"
         camera-controls
@@ -154,10 +176,10 @@ watch([modelUrl, isVisible], () => {
       ></model-viewer>
     </div>
 
-    <!-- スクリーンショット表示（フォールバックまたは追加表示） -->
-    <div v-if="screenshotUrl" class="screenshot-container" :class="{ 'error-fallback': hasError || !modelUrl }">
+    <!-- スクリーンショット表示 (フォールバック) -->
+    <div v-if="resolvedScreenshotUrl && (hasError || !resolvedModelUrl)" class="screenshot-container" :class="{ 'error-fallback': hasError || !resolvedModelUrl }">
       <img 
-        :src="screenshotUrl" 
+        :src="resolvedScreenshotUrl" 
         :alt="`${displayTitle || 'Minecraft作品'}のスクリーンショット`"
         class="screenshot-image"
         @error="(e) => { (e.target as HTMLImageElement).style.display = 'none'; }"

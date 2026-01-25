@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { addTypingRecord, getTypingHistoryByStudentId } from '@/utils/mockDataHelpers';
+import { useToast } from '@/composables/useToast';
 import type { TypingRecord } from '@/types/student';
 
 interface Props {
@@ -8,6 +9,9 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { addToast } = useToast();
+
+const DRAFT_KEY = 'typing_form_draft';
 
 const formData = ref({
   date: new Date().toISOString().split('T')[0],
@@ -16,10 +20,24 @@ const formData = ref({
 });
 
 const isSubmitting = ref(false);
-const submitSuccess = ref(false);
-const submitError = ref<string | null>(null);
 
 const typingHistory = computed(() => getTypingHistoryByStudentId(props.studentId));
+
+// Draft Saving
+watch(formData, (newVal) => {
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(newVal));
+}, { deep: true });
+
+onMounted(() => {
+  const savedDraft = localStorage.getItem(DRAFT_KEY);
+  if (savedDraft) {
+    try {
+      formData.value = { ...formData.value, ...JSON.parse(savedDraft) };
+    } catch (e) {
+      console.error('Draft restore failed', e);
+    }
+  }
+});
 
 // 前回のスコアを取得してdiffFromLastを計算
 const calculateDiffFromLast = (): number => {
@@ -40,19 +58,16 @@ const validateForm = (): string | null => {
   if (formData.value.wpm < 0) {
     return 'WPMは0以上である必要があります';
   }
-  if (formData.value.wpm > 200) {
-    return 'WPMは200以下である必要があります';
+  if (formData.value.wpm > 500) { // Relaxed validation
+    return 'WPMが異常に高いです(500以下)';
   }
   return null;
 };
 
 const handleSubmit = async () => {
-  submitError.value = null;
-  submitSuccess.value = false;
-
   const validationError = validateForm();
   if (validationError) {
-    submitError.value = validationError;
+    addToast('入力エラー', validationError, 'warning');
     return;
   }
 
@@ -69,18 +84,19 @@ const handleSubmit = async () => {
 
     addTypingRecord(props.studentId, newRecord);
 
-    submitSuccess.value = true;
+    const feedback = diffFromLast > 0 ? `前回より ${diffFromLast}UP! 🚀` : '記録を保存しました';
+    addToast('保存完了', feedback, 'success');
+
     formData.value = {
       date: new Date().toISOString().split('T')[0],
       score: 0,
       wpm: 0,
     };
+    
+    localStorage.removeItem(DRAFT_KEY);
 
-    setTimeout(() => {
-      submitSuccess.value = false;
-    }, 3000);
   } catch (error) {
-    submitError.value = error instanceof Error ? error.message : 'データの保存に失敗しました';
+    addToast('エラー', error instanceof Error ? error.message : '保存に失敗しました', 'error');
   } finally {
     isSubmitting.value = false;
   }
@@ -95,58 +111,52 @@ const handleSubmit = async () => {
 
       <form @submit.prevent="handleSubmit" class="form">
         <div class="form-group">
-          <label for="typing-date" class="form-label">日付</label>
+          <label for="typing-date" class="form-label">日付 <span class="required">*</span></label>
           <input
             id="typing-date"
             v-model="formData.date"
             type="date"
             class="form-input"
             required
-            aria-required="true"
-            aria-describedby="typing-date-help"
           />
-          <p id="typing-date-help" class="form-help">タイピング練習を行った日付を選択してください</p>
         </div>
 
-        <div class="form-group">
-          <label for="typing-score" class="form-label">スコア</label>
-          <input
-            id="typing-score"
-            v-model.number="formData.score"
-            type="number"
-            min="0"
-            step="1"
-            class="form-input"
-            required
-            aria-required="true"
-            aria-describedby="typing-score-help"
-          />
-          <p id="typing-score-help" class="form-help">タイピング練習の合計スコアを入力してください</p>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="typing-score" class="form-label">スコア <span class="required">*</span></label>
+            <input
+              id="typing-score"
+              v-model.number="formData.score"
+              type="number"
+              min="0"
+              step="1"
+              class="form-input"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="typing-wpm" class="form-label">WPM <span class="required">*</span></label>
+            <input
+              id="typing-wpm"
+              v-model.number="formData.wpm"
+              type="number"
+              min="0"
+              max="500"
+              step="0.1"
+              class="form-input"
+              required
+            />
+          </div>
         </div>
 
-        <div class="form-group">
-          <label for="typing-wpm" class="form-label">WPM (Words Per Minute)</label>
-          <input
-            id="typing-wpm"
-            v-model.number="formData.wpm"
-            type="number"
-            min="0"
-            max="200"
-            step="0.1"
-            class="form-input"
-            required
-            aria-required="true"
-            aria-describedby="typing-wpm-help"
-          />
-          <p id="typing-wpm-help" class="form-help">1分間あたりのタイピング速度を入力してください（0-200）</p>
-        </div>
-
-        <div v-if="submitError" class="error-message" role="alert">
-          ⚠️ {{ submitError }}
-        </div>
-
-        <div v-if="submitSuccess" class="success-message" role="alert">
-          ✅ データが正常に保存されました！
+        <div v-if="formData.score > 0" class="score-feedback">
+          <p class="feedback-text">
+            前回との差分: 
+            <span :class="calculateDiffFromLast() >= 0 ? 'pos' : 'neg'">
+              {{ calculateDiffFromLast() >= 0 ? '+' : '' }}{{ calculateDiffFromLast() }}
+            </span>
+          </p>
         </div>
 
         <button
@@ -155,7 +165,7 @@ const handleSubmit = async () => {
           class="submit-button"
           :class="{ submitting: isSubmitting }"
         >
-          <span v-if="!isSubmitting">保存</span>
+          <span v-if="!isSubmitting">記録を保存する</span>
           <span v-else>保存中...</span>
         </button>
       </form>
@@ -163,7 +173,7 @@ const handleSubmit = async () => {
 
     <!-- 履歴表示 -->
     <div class="history-section">
-      <h4 class="history-title">📊 タイピング履歴</h4>
+      <h4 class="history-title">📊 最近の履歴 (10件)</h4>
       <div v-if="typingHistory.length > 0" class="history-list">
         <div
           v-for="(record, index) in [...typingHistory].reverse().slice(0, 10)"
@@ -172,13 +182,13 @@ const handleSubmit = async () => {
         >
           <div class="history-date">{{ record.date }}</div>
           <div class="history-stats">
-            <span class="history-stat">スコア: {{ record.score }}</span>
-            <span class="history-stat">WPM: {{ record.wpm }}</span>
+            <span class="history-stat">Score: <strong>{{ record.score }}</strong></span>
+            <span class="history-stat">WPM: <strong>{{ record.wpm }}</strong></span>
             <span
-              class="history-stat"
+              class="history-diff"
               :class="record.diffFromLast >= 0 ? 'positive' : 'negative'"
             >
-              {{ record.diffFromLast >= 0 ? '+' : '' }}{{ record.diffFromLast }}
+              {{ record.diffFromLast >= 0 ? '▲' : '▼' }}{{ Math.abs(record.diffFromLast) }}
             </span>
           </div>
         </div>
@@ -202,6 +212,7 @@ const handleSubmit = async () => {
   border-radius: 16px;
   padding: 2rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
 }
 
 .form-title {
@@ -214,13 +225,19 @@ const handleSubmit = async () => {
 .form-description {
   font-size: 0.875rem;
   color: #64748b;
-  margin: 0 0 1.5rem 0;
+  margin: 0 0 2rem 0;
 }
 
 .form {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
 }
 
 .form-group {
@@ -235,14 +252,16 @@ const handleSubmit = async () => {
   color: #1e3a8a;
 }
 
+.required {
+  color: #ef4444;
+}
+
 .form-input {
   padding: 0.875rem;
-  min-height: 44px;
   border: 2px solid #e2e8f0;
   border-radius: 8px;
   font-size: 1rem;
   transition: all 0.3s ease;
-  background: white;
 }
 
 .form-input:focus {
@@ -251,58 +270,41 @@ const handleSubmit = async () => {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-.form-help {
-  font-size: 0.75rem;
-  color: #94a3b8;
-  margin: 0;
+.score-feedback {
+  background: #f8fafc;
+  padding: 0.75rem;
+  border-radius: 8px;
+  text-align: center;
 }
 
-.error-message {
-  padding: 1rem;
-  background: #fee2e2;
-  border: 2px solid #fca5a5;
-  border-radius: 8px;
-  color: #991b1b;
+.feedback-text {
   font-size: 0.875rem;
+  color: #64748b;
 }
 
-.success-message {
-  padding: 1rem;
-  background: #d1fae5;
-  border: 2px solid #6ee7b7;
-  border-radius: 8px;
-  color: #065f46;
-  font-size: 0.875rem;
-}
+.pos { color: #10b981; font-weight: bold; }
+.neg { color: #ef4444; font-weight: bold; }
 
 .submit-button {
-  padding: 1rem 2rem;
-  min-height: 44px;
-  min-width: 120px;
+  padding: 1rem;
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: white;
   border: none;
   border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 1.125rem;
+  font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .submit-button:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
-  }
-}
-
-.submit-button:active:not(:disabled) {
-  transform: translateY(0);
+.submit-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 12px rgba(59, 130, 246, 0.4);
 }
 
 .submit-button:disabled {
-  opacity: 0.6;
+  opacity: 0.7;
   cursor: not-allowed;
 }
 
@@ -311,13 +313,14 @@ const handleSubmit = async () => {
   border-radius: 16px;
   padding: 2rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
 }
 
 .history-title {
   font-size: 1.25rem;
   font-weight: bold;
   color: #1e3a8a;
-  margin: 0 0 1rem 0;
+  margin: 0 0 1.5rem 0;
 }
 
 .history-list {
@@ -339,26 +342,35 @@ const handleSubmit = async () => {
 .history-date {
   font-weight: 600;
   color: #1e3a8a;
+  font-size: 0.875rem;
 }
 
 .history-stats {
   display: flex;
-  gap: 1rem;
-  font-size: 0.875rem;
+  gap: 1.5rem;
+  align-items: center;
 }
 
 .history-stat {
   color: #64748b;
+  font-size: 0.875rem;
 }
 
-.history-stat.positive {
-  color: #059669;
-  font-weight: 600;
+.history-diff {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-weight: bold;
 }
 
-.history-stat.negative {
-  color: #dc2626;
-  font-weight: 600;
+.history-diff.positive {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.history-diff.negative {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .no-history {
@@ -367,22 +379,15 @@ const handleSubmit = async () => {
   color: #94a3b8;
 }
 
-/* レスポンシブ対応 */
-@media (max-width: 767.98px) {
-  .form-card,
-  .history-section {
-    padding: 1.5rem;
-  }
-
+@media (max-width: 640px) {
   .history-item {
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.5rem;
+    gap: 0.75rem;
   }
-
   .history-stats {
-    flex-direction: column;
-    gap: 0.25rem;
+    width: 100%;
+    justify-content: space-between;
   }
 }
 </style>

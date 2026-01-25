@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import type { Student } from '@/types/student';
 import { getCardsByStudentId } from '@/utils/mockDataHelpers';
+import { placeholders } from '@/utils/placeholder';
 import {
   calculateMotivation,
   getTypingStats,
@@ -38,7 +39,7 @@ const formatDate = (dateString: string) => {
       <div class="avatar-section">
         <div class="avatar-wrapper">
           <img
-            :src="student.avatarUrl || 'https://via.placeholder.com/150/667eea/FFFFFF?text=アバター'"
+            :src="student.avatarUrl || placeholders.avatar('アバター')"
             :alt="student.name"
             class="avatar-image"
           />

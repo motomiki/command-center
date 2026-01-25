@@ -10,6 +10,7 @@ import { getStudentById } from '@/utils/mockDataHelpers';
 import {
   getAllCards,
   getUnopenedCardsByStudentId,
+  openCard,
 } from '@/utils/mockDataHelpers';
 import { getRarityDisplayName } from '@/utils/rarity';
 
@@ -57,6 +58,7 @@ const selectedGachaCard = ref<CardData | undefined>(
 // ガチャ結果のハンドラー
 const handleCardOpened = (card: CardData) => {
   console.log('カードが開封されました:', card);
+  openCard(card.id); // カードを開封済みに設定
   // カードが開封されたら、ギャラリーセクションに移動するオプション
   // currentSection.value = 'gallery';
 };
@@ -65,12 +67,12 @@ const handleGachaComplete = (card: CardData) => {
   console.log('ガチャが完了しました:', card);
 };
 
-// MinecraftViewer用のカード（minecraftDataを持つカードから取得、最大6枚）
+// MinecraftViewer用のカード（minecraftDataを持つカードから取得）
 const minecraftCards = computed(() => {
   const allCards = getAllCards();
   return allCards
     .filter((card) => card.studentId === props.studentId && card.minecraftData && card.isOpened)
-    .slice(0, 6);
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // 新しい順にソート
 });
 </script>
 
@@ -108,7 +110,7 @@ const minecraftCards = computed(() => {
                     selectedGachaCard?.id === card.id ? 'active' : '',
                   ]"
                 >
-                  {{ getRarityDisplayName(card.rarity) }}
+                  {{ getRarityDisplayName(card.rarity || 'C') }}
                 </button>
               </div>
             </div>

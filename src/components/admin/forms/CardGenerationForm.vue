@@ -1,32 +1,61 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import FileUploader from '../FileUploader.vue';
+import { ref, watch, computed, onMounted } from 'vue';
+import DropZone from '@/components/common/DropZone.vue';
+import SsrCard from '@/components/SsrCard.vue';
 import { createCard } from '@/utils/mockDataHelpers';
+import { saveAsset, getAssetUrl } from '@/utils/assetStore';
 import { getRarityDisplayName } from '@/utils/rarity';
-import type { Rarity } from '@/types/card';
+import { useToast } from '@/composables/useToast';
+import type { Rarity, CardData } from '@/types/card';
 
 interface Props {
   studentId: string;
 }
 
 const props = defineProps<Props>();
+const { addToast } = useToast();
+
+const DRAFT_KEY = 'card_form_draft';
 
 const formData = ref({
   date: new Date().toISOString().split('T')[0],
   title: '',
   description: '',
   rarity: 'C' as Rarity,
-  imageUrl: '',
+  imageAssetId: '', // IDB Key
 });
 
 const imageFile = ref<File | null>(null);
 const imagePreviewUrl = ref<string | null>(null);
 
 const isSubmitting = ref(false);
-const submitSuccess = ref(false);
-const submitError = ref<string | null>(null);
 
 const rarities: Rarity[] = ['C', 'U', 'R', 'RR', 'SR', 'UR'];
+
+// Draft Saving
+watch(formData, (newVal) => {
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(newVal));
+}, { deep: true });
+
+onMounted(async () => {
+  const savedDraft = localStorage.getItem(DRAFT_KEY);
+  if (savedDraft) {
+    try {
+      const parsed = JSON.parse(savedDraft);
+      formData.value = {
+        ...formData.value,
+        ...parsed,
+      };
+      
+      if (formData.value.imageAssetId) {
+        imagePreviewUrl.value = await getAssetUrl(formData.value.imageAssetId) || null;
+      }
+      addToast('下書きを復元しました', '前回の入力内容を復元しました。', 'info', 3000);
+    } catch (e) {
+      console.error('Draft restore failed', e);
+    }
+  }
+});
 
 const validateForm = (): string | null => {
   if (!formData.value.date) {
@@ -35,34 +64,49 @@ const validateForm = (): string | null => {
   if (!formData.value.title.trim()) {
     return 'カード名を入力してください';
   }
-  if (!formData.value.imageUrl) {
-    return '画像をアップロードしてください';
+  if (!formData.value.imageAssetId && !imageFile.value) {
+     // Check both because assetId might be loaded from draft without file object
+     if (!formData.value.imageAssetId) return '画像をアップロードしてください';
   }
   return null;
 };
 
-const handleImageFileSelected = (file: File) => {
+const handleImageFilesDropped = async (files: File[]) => {
+  if (files.length === 0) return;
+  const file = files[0];
   imageFile.value = file;
   imagePreviewUrl.value = URL.createObjectURL(file);
-  formData.value.imageUrl = imagePreviewUrl.value;
+  
+  try {
+    const assetId = await saveAsset(file);
+    formData.value.imageAssetId = assetId;
+    addToast('画像読み込み完了', file.name, 'success', 2000);
+  } catch (e) {
+    addToast('保存エラー', '画像の一時保存に失敗しました', 'error');
+  }
 };
 
-const handleImageFileRemoved = () => {
-  if (imagePreviewUrl.value) {
-    URL.revokeObjectURL(imagePreviewUrl.value);
-  }
-  imageFile.value = null;
-  imagePreviewUrl.value = null;
-  formData.value.imageUrl = '';
+const handleError = (msg: string) => {
+  addToast('エラー', msg, 'error');
 };
+
+const previewCardData = computed((): CardData => {
+  return {
+    id: 'preview',
+    studentId: props.studentId,
+    date: formData.value.date,
+    title: formData.value.title || 'カード名',
+    description: formData.value.description,
+    rarity: formData.value.rarity,
+    imageUrl: imagePreviewUrl.value || '',
+    isOpened: true,
+  };
+});
 
 const handleSubmit = async () => {
-  submitError.value = null;
-  submitSuccess.value = false;
-
   const validationError = validateForm();
   if (validationError) {
-    submitError.value = validationError;
+    addToast('入力エラー', validationError, 'warning');
     return;
   }
 
@@ -74,28 +118,29 @@ const handleSubmit = async () => {
       date: formData.value.date,
       title: formData.value.title.trim(),
       description: formData.value.description.trim(),
-      imageUrl: formData.value.imageUrl,
+      imageUrl: `idb://${formData.value.imageAssetId}`,
       rarity: formData.value.rarity,
       isOpened: false,
       typingStats: undefined,
       minecraftData: undefined,
     });
 
-    submitSuccess.value = true;
+    addToast('カード生成完了', 'ガチャに追加されました！', 'success');
+
     formData.value = {
       date: new Date().toISOString().split('T')[0],
       title: '',
       description: '',
       rarity: 'C',
-      imageUrl: '',
+      imageAssetId: '',
     };
-    handleImageFileRemoved();
-
-    setTimeout(() => {
-      submitSuccess.value = false;
-    }, 3000);
+    imageFile.value = null;
+    imagePreviewUrl.value = null;
+    
+    localStorage.removeItem(DRAFT_KEY);
+    
   } catch (error) {
-    submitError.value = error instanceof Error ? error.message : 'カードの生成に失敗しました';
+    addToast('生成失敗', error instanceof Error ? error.message : 'カードの生成に失敗しました', 'error');
   } finally {
     isSubmitting.value = false;
   }
@@ -105,111 +150,104 @@ const handleSubmit = async () => {
 <template>
   <div class="card-form-container">
     <div class="form-card">
-      <h3 class="form-title">🎴 カード生成</h3>
-      <p class="form-description">生徒の成果をカードとして生成します。生成されたカードはガチャで開封できます。</p>
-
-      <form @submit.prevent="handleSubmit" class="form">
-        <div class="form-group">
-          <label for="card-date" class="form-label">日付</label>
-          <input
-            id="card-date"
-            v-model="formData.date"
-            type="date"
-            class="form-input"
-            required
-            aria-required="true"
-            aria-describedby="card-date-help"
-          />
-          <p id="card-date-help" class="form-help">カードに関連する活動の日付を選択してください</p>
+      <div class="form-header">
+        <div>
+          <h3 class="form-title">🎴 カード生成</h3>
+          <p class="form-description">生徒の成果をカードとして生成します。</p>
         </div>
+      </div>
 
-        <div class="form-group">
-          <label for="card-title" class="form-label">カード名</label>
-          <input
-            id="card-title"
-            v-model="formData.title"
-            type="text"
-            class="form-input"
-            placeholder="例: 天空の城"
-            required
-            aria-required="true"
-            aria-describedby="card-title-help"
-          />
-          <p id="card-title-help" class="form-help">カードの名前を入力してください（小学生向けの平易な日本語）</p>
-        </div>
-
-        <div class="form-group">
-          <label for="card-description" class="form-label">コメント</label>
-          <textarea
-            id="card-description"
-            v-model="formData.description"
-            class="form-textarea"
-            rows="4"
-            placeholder="例: とってもすごい作品ができました！たくさんのブロックをつかってつくりました。"
-            aria-describedby="card-description-help"
-          ></textarea>
-          <p id="card-description-help" class="form-help">先生からのコメントを入力してください（任意）</p>
-        </div>
-
-        <div class="form-group">
-          <label for="card-rarity" class="form-label">レアリティ</label>
-          <div class="rarity-selector">
-            <button
-              v-for="rarity in rarities"
-              :key="rarity"
-              type="button"
-              @click="formData.rarity = rarity"
-              :class="['rarity-button', { active: formData.rarity === rarity }]"
-              :aria-label="`${getRarityDisplayName(rarity)}を選択`"
-            >
-              {{ rarity }}
-              <span class="rarity-label">{{ getRarityDisplayName(rarity) }}</span>
-            </button>
+      <div class="content-split">
+        <!-- Left: Form -->
+        <form @submit.prevent="handleSubmit" class="form-left">
+           <div class="form-group">
+            <label for="card-date" class="form-label">日付 <span class="required">*</span></label>
+            <input
+              id="card-date"
+              v-model="formData.date"
+              type="date"
+              class="form-input"
+              required
+            />
           </div>
-          <p class="form-help">カードのレアリティを選択してください</p>
-        </div>
 
-        <div class="form-group">
-          <label class="form-label">カード画像</label>
-          <FileUploader
-            accept="image/*"
-            :max-size-m-b="10"
-            label=""
-            @file-selected="handleImageFileSelected"
-            @file-removed="handleImageFileRemoved"
-          />
-          <p class="form-help">カードに使用する画像をアップロードしてください（必須）</p>
-        </div>
+          <div class="form-group">
+            <label for="card-title" class="form-label">カード名 <span class="required">*</span></label>
+            <input
+              id="card-title"
+              v-model="formData.title"
+              type="text"
+              class="form-input"
+              placeholder="例: 天空の城"
+              required
+            />
+          </div>
+          
+           <div class="form-group">
+              <label class="form-label">カード画像 <span class="required">*</span></label>
+              <DropZone
+                accept="image/*"
+                :max-size-m-b="10"
+                @files-dropped="handleImageFilesDropped"
+                @error="handleError"
+                class="compact-dropzone"
+              >
+                 <div v-if="formData.imageAssetId">
+                   <p class="text-green-600 font-bold">✓ 画像セット済み</p>
+                   <p class="text-xs text-gray-500">ドラッグして変更</p>
+                 </div>
+                 <div v-else>
+                   <p class="text-sm">画像をドラッグ</p>
+                 </div>
+              </DropZone>
+          </div>
 
-        <div v-if="imagePreviewUrl" class="card-preview">
-          <h4 class="preview-title">プレビュー</h4>
-          <div class="preview-card">
-            <img :src="imagePreviewUrl" alt="カードプレビュー" class="preview-image" loading="lazy" />
-            <div class="preview-info">
-              <p class="preview-name">{{ formData.title || 'カード名' }}</p>
-              <p class="preview-rarity">{{ getRarityDisplayName(formData.rarity) }}</p>
+          <div class="form-group">
+            <label for="card-rarity" class="form-label">レアリティ</label>
+            <div class="rarity-selector">
+              <button
+                v-for="rarity in rarities"
+                :key="rarity"
+                type="button"
+                @click="formData.rarity = rarity"
+                :class="['rarity-button', { active: formData.rarity === rarity }]"
+              >
+                {{ rarity }}
+              </button>
             </div>
           </div>
-        </div>
+          
+          <div class="form-group">
+            <label for="card-description" class="form-label">コメント</label>
+            <textarea
+              id="card-description"
+              v-model="formData.description"
+              class="form-textarea"
+              rows="3"
+              placeholder="先生からのコメント..."
+            ></textarea>
+          </div>
 
-        <div v-if="submitError" class="error-message" role="alert">
-          ⚠️ {{ submitError }}
-        </div>
+          <button
+            type="submit"
+            :disabled="isSubmitting"
+            class="submit-button"
+            :class="{ submitting: isSubmitting }"
+          >
+            <span v-if="!isSubmitting">カードを生成</span>
+            <span v-else>生成中...</span>
+          </button>
+        </form>
 
-        <div v-if="submitSuccess" class="success-message" role="alert">
-          ✅ カードが正常に生成されました！生徒がガチャで開封できるようになりました。
+        <!-- Right: Real-time Preview -->
+        <div class="preview-right">
+          <h4 class="preview-header">プレビュー</h4>
+          <div class="preview-wrapper">
+            <SsrCard :card="previewCardData" />
+          </div>
+          <p class="preview-note">※ 実際のガチャ演出とは一部異なる場合があります</p>
         </div>
-
-        <button
-          type="submit"
-          :disabled="isSubmitting"
-          class="submit-button"
-          :class="{ submitting: isSubmitting }"
-        >
-          <span v-if="!isSubmitting">カードを生成</span>
-          <span v-else>生成中...</span>
-        </button>
-      </form>
+      </div>
     </div>
   </div>
 </template>
@@ -224,6 +262,7 @@ const handleSubmit = async () => {
   border-radius: 16px;
   padding: 2rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
 }
 
 .form-title {
@@ -236,10 +275,27 @@ const handleSubmit = async () => {
 .form-description {
   font-size: 0.875rem;
   color: #64748b;
-  margin: 0 0 1.5rem 0;
+  margin: 0;
 }
 
-.form {
+.form-header {
+  margin-bottom: 2rem;
+}
+
+.content-split {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+
+@media (min-width: 1024px) {
+  .content-split {
+    grid-template-columns: 1fr 340px; /* Preview has fixed width */
+    gap: 3rem;
+  }
+}
+
+.form-left {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -257,219 +313,101 @@ const handleSubmit = async () => {
   color: #1e3a8a;
 }
 
-.form-input {
+.required {
+  color: #ef4444;
+}
+
+.form-input, .form-textarea {
   padding: 0.875rem;
-  min-height: 44px;
   border: 2px solid #e2e8f0;
   border-radius: 8px;
   font-size: 1rem;
+  width: 100%;
   transition: all 0.3s ease;
-  background: white;
 }
 
-.form-input:focus {
+.form-input:focus, .form-textarea:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.form-textarea {
-  padding: 0.75rem;
-  border: 2px solid #e2e8f0;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-family: inherit;
-  resize: vertical;
-  transition: all 0.3s ease;
-  background: white;
-}
-
-.form-textarea:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.form-help {
-  font-size: 0.75rem;
-  color: #94a3b8;
-  margin: 0;
 }
 
 .rarity-selector {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.75rem;
-}
-
-@media (min-width: 640px) {
-  .rarity-selector {
-    grid-template-columns: repeat(3, 1fr);
-  }
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .rarity-button {
-  padding: 1rem;
-  min-height: 44px;
+  flex: 1;
+  min-width: 40px;
+  padding: 0.75rem 0;
   border: 2px solid #e2e8f0;
   border-radius: 8px;
   background: white;
   cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: 1.25rem;
   font-weight: bold;
   color: #64748b;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .rarity-button:hover {
-    border-color: #3b82f6;
-    background: #eff6ff;
-    transform: translateY(-2px);
-  }
+  transition: all 0.2s ease;
 }
 
 .rarity-button.active {
   border-color: #3b82f6;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  color: white;
-  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
-}
-
-.rarity-label {
-  font-size: 0.75rem;
-  font-weight: normal;
-  opacity: 0.9;
-}
-
-.card-preview {
-  padding: 1.5rem;
-  background: #f8fafc;
-  border-radius: 12px;
-  border: 2px solid #e2e8f0;
-}
-
-.preview-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #1e3a8a;
-  margin: 0 0 1rem 0;
-}
-
-.preview-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-}
-
-.preview-image {
-  width: 150px;
-  height: 225px;
-  object-fit: cover;
-  border-radius: 12px;
-  border: 2px solid #e2e8f0;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-@media (min-width: 640px) {
-  .preview-image {
-    width: 175px;
-    height: 262px;
-  }
-}
-
-@media (min-width: 1024px) {
-  .preview-image {
-    width: 200px;
-    height: 300px;
-  }
-}
-
-.preview-info {
-  text-align: center;
-}
-
-.preview-name {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #1e3a8a;
-  margin: 0 0 0.25rem 0;
-}
-
-.preview-rarity {
-  font-size: 0.875rem;
-  color: #64748b;
-  margin: 0;
-}
-
-.error-message {
-  padding: 1rem;
-  background: #fee2e2;
-  border: 2px solid #fca5a5;
-  border-radius: 8px;
-  color: #991b1b;
-  font-size: 0.875rem;
-}
-
-.success-message {
-  padding: 1rem;
-  background: #d1fae5;
-  border: 2px solid #6ee7b7;
-  border-radius: 8px;
-  color: #065f46;
-  font-size: 0.875rem;
+  background: #eff6ff;
+  color: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(37, 99, 235, 0.1);
 }
 
 .submit-button {
-  padding: 1rem 2rem;
-  min-height: 44px;
-  min-width: 120px;
+  padding: 1rem;
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: white;
   border: none;
   border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 1.125rem;
+  font-weight: bold;
   cursor: pointer;
+  box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
   transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+  margin-top: 1rem;
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .submit-button:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
-  }
-}
-
-.submit-button:active:not(:disabled) {
-  transform: translateY(0);
+.submit-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 12px rgba(59, 130, 246, 0.4);
 }
 
 .submit-button:disabled {
-  opacity: 0.6;
+  opacity: 0.7;
   cursor: not-allowed;
 }
 
-/* レスポンシブ対応 */
-@media (max-width: 767.98px) {
-  .form-card {
-    padding: 1.5rem;
-  }
+.compact-dropzone {
+  min-height: 120px;
+}
 
-  .rarity-selector {
-    grid-template-columns: repeat(2, 1fr);
-  }
+.preview-right {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
 
-  .preview-image {
-    width: 150px;
-    height: 225px;
-  }
+.preview-header {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e3a8a;
+  margin-bottom: 1rem;
+}
+
+.preview-wrapper {
+  margin-bottom: 1rem;
+}
+
+.preview-note {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  text-align: center;
 }
 </style>
 

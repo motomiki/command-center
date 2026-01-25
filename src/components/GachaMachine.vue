@@ -5,6 +5,7 @@ import type { CardData, Rarity } from '@/types/card';
 import type { GachaState } from '@/types/gacha';
 import SsrCard from './SsrCard.vue';
 import { getRarityDisplayName } from '@/utils/rarity';
+import { placeholders } from '@/utils/placeholder';
 
 // Propsの定義: CardDataを直接受け取るか、個別プロパティを受け取る
 interface Props {
@@ -267,7 +268,7 @@ onUnmounted(() => {
             :alt="currentCard.title"
             class="card-preview-image"
             loading="lazy"
-            @error="(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/320x480/808080/FFFFFF?text=Card'; }"
+            @error="(e) => { (e.target as HTMLImageElement).src = placeholders.cardU('Card'); }"
           />
           <div class="card-preview-rarity">{{ getRarityDisplayName(currentCard.rarity) }} ゲット！！</div>
         </div>

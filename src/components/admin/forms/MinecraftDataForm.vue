@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import FileUploader from '../FileUploader.vue';
-import { addMinecraftProject } from '@/utils/mockDataHelpers';
+import { ref, watch, onMounted } from 'vue';
+import DropZone from '@/components/common/DropZone.vue';
+import { addMinecraftProject, createCard } from '@/utils/mockDataHelpers';
+import { saveAsset, getAssetUrl } from '@/utils/assetStore';
+import { useToast } from '@/composables/useToast';
+import { placeholders } from '@/utils/placeholder';
 import type { MinecraftProject } from '@/types/student';
 
 interface Props {
@@ -9,13 +12,17 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { addToast } = useToast();
+
+const DRAFT_KEY = 'minecraft_form_draft';
 
 const formData = ref({
   title: '',
   description: '',
   createdAt: new Date().toISOString().split('T')[0],
-  modelUrl: '',
-  screenshotUrl: '',
+  modelAssetId: '', // IDB key
+  screenshotAssetId: '', // IDB key (for now, mainly used for preview/storage)
+  // For compatibility/fallback, we might still use URL string if external
   makeCodeUrl: '',
 });
 
@@ -25,8 +32,37 @@ const modelPreviewUrl = ref<string | null>(null);
 const screenshotPreviewUrl = ref<string | null>(null);
 
 const isSubmitting = ref(false);
-const submitSuccess = ref(false);
-const submitError = ref<string | null>(null);
+
+// Draft Saving
+watch(formData, (newVal) => {
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(newVal));
+}, { deep: true });
+
+onMounted(async () => {
+  const savedDraft = localStorage.getItem(DRAFT_KEY);
+  if (savedDraft) {
+    try {
+      const parsed = JSON.parse(savedDraft);
+      // Restore basic fields
+      formData.value = {
+        ...formData.value,
+        ...parsed,
+      };
+      
+      // Restore previews if Asset IDs exist
+      if (formData.value.modelAssetId) {
+        modelPreviewUrl.value = await getAssetUrl(formData.value.modelAssetId) || null;
+      }
+      if (formData.value.screenshotAssetId) {
+        screenshotPreviewUrl.value = await getAssetUrl(formData.value.screenshotAssetId) || null;
+      }
+      
+      addToast('下書きを復元しました', '前回の入力内容を復元しました。', 'info', 3000);
+    } catch (e) {
+      console.error('Draft restore failed', e);
+    }
+  }
+});
 
 const validateForm = (): string | null => {
   if (!formData.value.title.trim()) {
@@ -38,79 +74,107 @@ const validateForm = (): string | null => {
   return null;
 };
 
-const handleModelFileSelected = (file: File) => {
+const handleModelFilesDropped = async (files: File[]) => {
+  if (files.length === 0) return;
+  const file = files[0];
   modelFile.value = file;
+  
+  // Create temp URL for preview (revoked later or handled by IDB)
   modelPreviewUrl.value = URL.createObjectURL(file);
-  // 簡易版では、実際のアップロードは行わず、Blob URLを保存
-  formData.value.modelUrl = modelPreviewUrl.value;
-};
-
-const handleModelFileRemoved = () => {
-  if (modelPreviewUrl.value) {
-    URL.revokeObjectURL(modelPreviewUrl.value);
+  
+  // Immediately save to IDB (Draft/Asset style)
+  try {
+    const assetId = await saveAsset(file);
+    formData.value.modelAssetId = assetId; // "idb://..." logic handled at conversion
+    addToast('3Dモデルを読み込みました', file.name, 'success', 2000);
+  } catch (e) {
+    addToast('保存エラー', '3Dモデルの一時保存に失敗しました', 'error');
   }
-  modelFile.value = null;
-  modelPreviewUrl.value = null;
-  formData.value.modelUrl = '';
 };
 
-const handleScreenshotFileSelected = (file: File) => {
+const handleScreenshotFilesDropped = async (files: File[]) => {
+  if (files.length === 0) return;
+  const file = files[0];
   screenshotFile.value = file;
   screenshotPreviewUrl.value = URL.createObjectURL(file);
-  formData.value.screenshotUrl = screenshotPreviewUrl.value;
+
+  try {
+    const assetId = await saveAsset(file);
+    formData.value.screenshotAssetId = assetId;
+    addToast('画像を読み込みました', file.name, 'success', 2000);
+  } catch (e) {
+    addToast('保存エラー', '画像の一時保存に失敗しました', 'error');
+  }
 };
 
-const handleScreenshotFileRemoved = () => {
-  if (screenshotPreviewUrl.value) {
-    URL.revokeObjectURL(screenshotPreviewUrl.value);
-  }
-  screenshotFile.value = null;
-  screenshotPreviewUrl.value = null;
-  formData.value.screenshotUrl = '';
+const handleError = (msg: string) => {
+  addToast('エラー', msg, 'error');
 };
 
 const handleSubmit = async () => {
-  submitError.value = null;
-  submitSuccess.value = false;
-
   const validationError = validateForm();
   if (validationError) {
-    submitError.value = validationError;
+    addToast('入力エラー', validationError, 'warning');
     return;
   }
 
   isSubmitting.value = true;
 
   try {
+    // Construct final data
+    // Note: We use the special scheme "idb://" for internal assets
+    const finalModelUrl = formData.value.modelAssetId ? `idb://${formData.value.modelAssetId}` : undefined;
+    const finalScreenshotUrl = formData.value.screenshotAssetId ? `idb://${formData.value.screenshotAssetId}` : undefined;
+
     const newProject: MinecraftProject = {
       id: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       title: formData.value.title.trim(),
       description: formData.value.description.trim(),
       createdAt: formData.value.createdAt,
-      modelUrl: formData.value.modelUrl || undefined,
-      screenshotUrl: formData.value.screenshotUrl || undefined,
+      modelUrl: finalModelUrl,
+      screenshotUrl: finalScreenshotUrl,
       makeCodeUrl: formData.value.makeCodeUrl.trim() || undefined,
     };
 
     addMinecraftProject(props.studentId, newProject);
 
-    submitSuccess.value = true;
+    // ダッシュボードに表示するためのカードも作成
+    createCard({
+      studentId: props.studentId,
+      date: formData.value.createdAt,
+      title: formData.value.title.trim(),
+      description: formData.value.description.trim() || 'Minecraft作品',
+      imageUrl: finalScreenshotUrl || placeholders.minecraftScreenshot('Minecraft'),
+      rarity: 'R', // デフォルトでRare
+      isOpened: false, // ガチャ未開封
+      minecraftData: {
+        modelUrl: finalModelUrl,
+        screenshotUrl: finalScreenshotUrl,
+        makeCodeUrl: formData.value.makeCodeUrl.trim() || undefined,
+      },
+    });
+
+    addToast('保存完了', 'Minecraft作品を登録しました！', 'success');
+    
+    // Reset Form
     formData.value = {
       title: '',
       description: '',
       createdAt: new Date().toISOString().split('T')[0],
-      modelUrl: '',
-      screenshotUrl: '',
+      modelAssetId: '',
+      screenshotAssetId: '',
       makeCodeUrl: '',
     };
-    handleModelFileRemoved();
-    handleScreenshotFileRemoved();
+    modelFile.value = null;
+    screenshotFile.value = null;
+    modelPreviewUrl.value = null;
+    screenshotPreviewUrl.value = null;
+    
+    // Clear Draft
+    localStorage.removeItem(DRAFT_KEY);
 
-    setTimeout(() => {
-      submitSuccess.value = false;
-    }, 3000);
   } catch (error) {
-    submitError.value = error instanceof Error ? error.message : 'データの保存に失敗しました';
+    addToast('保存失敗', error instanceof Error ? error.message : '保存に失敗しました', 'error');
   } finally {
     isSubmitting.value = false;
   }
@@ -124,91 +188,93 @@ const handleSubmit = async () => {
       <p class="form-description">生徒のMinecraft作品を登録してください</p>
 
       <form @submit.prevent="handleSubmit" class="form">
-        <div class="form-group">
-          <label for="minecraft-title" class="form-label">作品名</label>
-          <input
-            id="minecraft-title"
-            v-model="formData.title"
-            type="text"
-            class="form-input"
-            placeholder="例: むらさきのせかい"
-            required
-            aria-required="true"
-            aria-describedby="minecraft-title-help"
-          />
-          <p id="minecraft-title-help" class="form-help">作品の名前を入力してください（小学生向けの平易な日本語）</p>
-        </div>
+        <div class="form-grid">
+          <!-- Text Inputs -->
+          <div class="input-section">
+            <div class="form-group">
+              <label for="minecraft-title" class="form-label">作品名 <span class="required">*</span></label>
+              <input
+                id="minecraft-title"
+                v-model="formData.title"
+                type="text"
+                class="form-input"
+                placeholder="例: むらさきのせかい"
+                required
+              />
+            </div>
 
-        <div class="form-group">
-          <label for="minecraft-description" class="form-label">説明</label>
-          <textarea
-            id="minecraft-description"
-            v-model="formData.description"
-            class="form-textarea"
-            rows="4"
-            placeholder="例: とってもすごい作品ができました！たくさんのブロックをつかってつくりました。"
-            aria-describedby="minecraft-description-help"
-          ></textarea>
-          <p id="minecraft-description-help" class="form-help">作品の説明を入力してください（任意）</p>
-        </div>
+            <div class="form-group">
+              <label for="minecraft-date" class="form-label">作成日 <span class="required">*</span></label>
+              <input
+                id="minecraft-date"
+                v-model="formData.createdAt"
+                type="date"
+                class="form-input"
+                required
+              />
+            </div>
+            
+             <div class="form-group">
+              <label for="minecraft-makecode" class="form-label">MakeCode URL</label>
+              <input
+                id="minecraft-makecode"
+                v-model="formData.makeCodeUrl"
+                type="url"
+                class="form-input"
+                placeholder="https://..."
+              />
+            </div>
 
-        <div class="form-group">
-          <label for="minecraft-date" class="form-label">作成日</label>
-          <input
-            id="minecraft-date"
-            v-model="formData.createdAt"
-            type="date"
-            class="form-input"
-            required
-            aria-required="true"
-            aria-describedby="minecraft-date-help"
-          />
-          <p id="minecraft-date-help" class="form-help">作品を作成した日付を選択してください</p>
-        </div>
+            <div class="form-group">
+              <label for="minecraft-description" class="form-label">作品の説明</label>
+              <textarea
+                id="minecraft-description"
+                v-model="formData.description"
+                class="form-textarea"
+                rows="4"
+                placeholder="作品のポイントやがんばったところ..."
+              ></textarea>
+            </div>
+          </div>
 
-        <div class="form-group">
-          <label class="form-label">3Dモデル (.glbファイル)</label>
-          <FileUploader
-            accept=".glb,model/gltf-binary"
-            :max-size-m-b="50"
-            label=""
-            @file-selected="handleModelFileSelected"
-            @file-removed="handleModelFileRemoved"
-          />
-          <p class="form-help">Minecraftの3Dモデルファイルをアップロードしてください（任意）</p>
-        </div>
+          <!-- File Uploads -->
+          <div class="upload-section">
+            <div class="form-group">
+              <label class="form-label">3Dモデル (.glb)</label>
+              <DropZone
+                accept=".glb,model/gltf-binary"
+                :max-size-m-b="50"
+                @files-dropped="handleModelFilesDropped"
+                @error="handleError"
+              >
+                <div v-if="modelPreviewUrl" class="file-preview">
+                   <span class="file-icon">📦</span>
+                   <span class="file-status">アップロード完了</span>
+                </div>
+                <div v-else>
+                  <p class="primary-text">3Dモデルをドロップ</p>
+                  <p class="secondary-text">またはクリック (.glb)</p>
+                </div>
+              </DropZone>
+            </div>
 
-        <div class="form-group">
-          <label class="form-label">スクリーンショット</label>
-          <FileUploader
-            accept="image/*"
-            :max-size-m-b="10"
-            label=""
-            @file-selected="handleScreenshotFileSelected"
-            @file-removed="handleScreenshotFileRemoved"
-          />
-          <p class="form-help">作品のスクリーンショットをアップロードしてください（任意）</p>
-        </div>
-
-        <div class="form-group">
-          <label for="minecraft-makecode" class="form-label">MakeCode URL</label>
-          <input
-            id="minecraft-makecode"
-            v-model="formData.makeCodeUrl"
-            type="url"
-            class="form-input"
-            placeholder="https://minecraft.makecode.com/?lang=ja#"
-            aria-describedby="minecraft-makecode-help"
-          />
-          <p id="minecraft-makecode-help" class="form-help">MakeCodeの共有URLを入力してください（任意）</p>
-        </div>
-
-        <div v-if="submitError" class="error-message" role="alert">
-          ⚠️ {{ submitError }}
-        </div>
-
-        <div v-if="submitSuccess" class="success-message" role="alert">
-          ✅ データが正常に保存されました！
+            <div class="form-group">
+              <label class="form-label">スクリーンショット</label>
+              <DropZone
+                accept="image/*"
+                :max-size-m-b="10"
+                @files-dropped="handleScreenshotFilesDropped"
+                @error="handleError"
+              >
+                 <div v-if="screenshotPreviewUrl" class="image-preview-wrapper">
+                   <img :src="screenshotPreviewUrl" class="preview-img" />
+                </div>
+                <div v-else>
+                  <p class="primary-text">画像をドロップ</p>
+                </div>
+              </DropZone>
+            </div>
+          </div>
         </div>
 
         <button
@@ -217,7 +283,7 @@ const handleSubmit = async () => {
           class="submit-button"
           :class="{ submitting: isSubmitting }"
         >
-          <span v-if="!isSubmitting">保存</span>
+          <span v-if="!isSubmitting">保存する</span>
           <span v-else>保存中...</span>
         </button>
       </form>
@@ -235,6 +301,7 @@ const handleSubmit = async () => {
   border-radius: 16px;
   padding: 2rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
 }
 
 .form-title {
@@ -247,19 +314,26 @@ const handleSubmit = async () => {
 .form-description {
   font-size: 0.875rem;
   color: #64748b;
-  margin: 0 0 1.5rem 0;
+  margin: 0 0 2rem 0;
 }
 
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+
+@media (min-width: 768px) {
+  .form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .form-label {
@@ -268,100 +342,86 @@ const handleSubmit = async () => {
   color: #1e3a8a;
 }
 
-.form-input {
+.required {
+  color: #ef4444;
+}
+
+.form-input, .form-textarea {
   padding: 0.875rem;
-  min-height: 44px;
   border: 2px solid #e2e8f0;
   border-radius: 8px;
   font-size: 1rem;
   transition: all 0.3s ease;
-  background: white;
+  width: 100%;
 }
 
-.form-input:focus {
+.form-input:focus, .form-textarea:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-.form-textarea {
-  padding: 0.875rem;
-  min-height: 88px;
-  border: 2px solid #e2e8f0;
+.file-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: #10b981;
+}
+
+.file-icon {
+  font-size: 2rem;
+}
+
+.image-preview-wrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
   border-radius: 8px;
-  font-size: 1rem;
-  font-family: inherit;
-  resize: vertical;
-  transition: all 0.3s ease;
-  background: white;
 }
 
-.form-textarea:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.form-help {
-  font-size: 0.75rem;
-  color: #94a3b8;
-  margin: 0;
-}
-
-.error-message {
-  padding: 1rem;
-  background: #fee2e2;
-  border: 2px solid #fca5a5;
-  border-radius: 8px;
-  color: #991b1b;
-  font-size: 0.875rem;
-}
-
-.success-message {
-  padding: 1rem;
-  background: #d1fae5;
-  border: 2px solid #6ee7b7;
-  border-radius: 8px;
-  color: #065f46;
-  font-size: 0.875rem;
+.preview-img {
+  max-width: 100%;
+  max-height: 150px;
+  object-fit: contain;
 }
 
 .submit-button {
-  padding: 1rem 2rem;
-  min-height: 44px;
-  min-width: 120px;
+  width: 100%;
+  padding: 1rem;
+  margin-top: 1rem;
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: white;
   border: none;
   border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 1.125rem;
+  font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .submit-button:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
-  }
-}
-
-.submit-button:active:not(:disabled) {
-  transform: translateY(0);
+.submit-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 12px rgba(59, 130, 246, 0.4);
 }
 
 .submit-button:disabled {
-  opacity: 0.6;
+  opacity: 0.7;
   cursor: not-allowed;
 }
 
-/* レスポンシブ対応 */
-@media (max-width: 767.98px) {
-  .form-card {
-    padding: 1.5rem;
-  }
+.primary-text {
+  font-weight: 600;
+  color: #334155;
 }
+.secondary-text {
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
 </style>
 

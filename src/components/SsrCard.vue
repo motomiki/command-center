@@ -1,7 +1,8 @@
 <script setup lang="ts">
-  import { ref, computed } from 'vue';
+  import { ref, computed, watch } from 'vue';
   import type { Rarity, CardData } from '@/types/card';
   import { getRarityBadgeName } from '@/utils/rarity';
+  import { getAssetUrl } from '@/utils/assetStore';
   
   // Propsの定義: CardDataを直接受け取るか、個別プロパティを受け取る
   interface Props {
@@ -20,9 +21,24 @@
   
   // CardDataから値を取得するか、個別プロパティから取得する
   const cardTitle = computed(() => props.card?.title ?? props.title ?? '');
-  const cardImageUrl = computed(() => props.card?.imageUrl ?? props.imageUrl ?? '');
+  const rawImageUrl = computed(() => props.card?.imageUrl ?? props.imageUrl ?? '');
   const cardDescription = computed(() => props.card?.description ?? props.description);
   const cardRarity = computed(() => props.card?.rarity ?? props.rarity ?? 'UR');
+
+  // IDB URL Resolution
+  const resolvedImageUrl = ref('');
+
+  watch(rawImageUrl, async (newUrl) => {
+    if (newUrl && newUrl.startsWith('idb://')) {
+      const id = newUrl.replace('idb://', '');
+      const url = await getAssetUrl(id);
+      resolvedImageUrl.value = url || '';
+    } else {
+      resolvedImageUrl.value = newUrl;
+    }
+  }, { immediate: true });
+
+  const cardImageUrl = computed(() => resolvedImageUrl.value);
   
   // --- 3D Tilt Logic ---
   const cardRef = ref<HTMLElement | null>(null);
