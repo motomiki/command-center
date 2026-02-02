@@ -133,14 +133,14 @@ export function getHighestRarity(cards: CardData[]): Rarity | null {
     return null;
   }
 
-  let highestRarity: Rarity = cards[0].rarity;
+  let highestRarity: Rarity = cards[0].rarity || 'C';
   let highestOrder = RARITY_ORDER[highestRarity];
 
   cards.forEach((card) => {
-    const order = RARITY_ORDER[card.rarity];
+    const order = RARITY_ORDER[card.rarity || 'C'];
     if (order > highestOrder) {
       highestOrder = order;
-      highestRarity = card.rarity;
+      highestRarity = card.rarity || 'C';
     }
   });
 
@@ -190,7 +190,7 @@ export function getTypingStats(
   const avgRecentImprovement =
     recentImprovements.length > 0
       ? recentImprovements.reduce((sum, diff) => sum + diff, 0) /
-        recentImprovements.length
+      recentImprovements.length
       : 0;
 
   let recentTrend: 'up' | 'down' | 'stable' = 'stable';

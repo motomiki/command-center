@@ -137,3 +137,35 @@ export interface CardData {
    - [x] **レスポンシブ対応:** タブレット（iPad）での操作を考慮したレイアウトとタッチターゲット。
    - [x] **一覧性の向上:** 生徒リストや過去のデータを見やすく整理（検索・フィルタリング機能）。
 
+---
+
+## 7. Auto TCG 生成パイプライン（計画）
+
+`.cursor/rules/AUTO-TCG-GENERATION.mdc` に基づき、Gemini の画像生成モデルと Pillow を用いた TCG カード自動生成を `scripts/tcg_generator/` に実装する。
+
+### 運用前提
+
+- **生成単位:** 生徒がガチャを引くたびに **1枚ずつ** 生成（バッチ一括生成は行わない）。
+- **想定ボリューム:** 1日あたり **約30枚**。
+- **入力:** 1枚分のデータ（タイトル・プロンプト・レアリティなど）を、実行ごとに引数または JSON 等で渡す。
+
+### ディレクトリ構成（予定）
+
+- `scripts/tcg_generator/assets/` … カード枠（`frame.png`）、スタイル参照（`style.png`）。
+- `scripts/tcg_generator/data/` … 入力例・プロンプト雛形用（任意）。
+- `scripts/tcg_generator/output/` … 生成画像の保存先。
+- `scripts/tcg_generator/src/` … Python ソース。
+
+### 実装ステップ（予定）
+
+1. **依存関係:** `requirements.txt`（google-genai, pillow, pandas 等）。
+2. **データ層:** 1枚分の入力を受け取る仕組み（CLI 引数 `--title`, `--prompt`, `--rarity` 等、または 1件 JSON）。
+3. **アセット層:** `ai_generator.py` — Gemini API でイラスト生成、StyleReferenceImage、リトライ処理。
+4. **合成層:** `compositor.py` — Pillow で枠・テキスト合成、日本語折り返し（`draw_text_wrapped_ja`）、プレースホルダー自動生成。
+5. **メイン:** `main.py` — 1枚生成用 CLI（例: `python main.py --title "炎の剣" --prompt "..." --rarity SR --output ./output/card_001.png`）。
+
+### 成果物（予定）
+
+- 上記を満たす Python スクリプト群。
+- `scripts/tcg_generator/README.md`（実行方法・素材差し替えを日本語で記載）。
+

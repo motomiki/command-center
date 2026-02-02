@@ -542,34 +542,34 @@ const handleNavigateToGacha = () => {
   margin-top: 2rem;
 }
 
+/* タブレット 1280x800 想定: 1列 → 2列 → 3列 */
 .recent-cards-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1.5rem;
-  justify-items: center;
+  gap: 1.25rem;
+  margin: 0 auto;
+  justify-items: stretch;
 }
 
-@media (min-width: 640px) {
+@media (min-width: 768px) {
   .recent-cards-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 1.75rem;
+    gap: 1.5rem;
   }
 }
 
 @media (min-width: 1024px) {
   .recent-cards-grid {
     grid-template-columns: repeat(3, 1fr);
-    gap: 2rem;
+    gap: 1.25rem;
   }
 }
 
-@media (min-width: 1280px) {
-  .recent-cards-grid {
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  }
-}
-
+/* グリッド項目に幅を渡し、SsrCard の aspect-ratio が正しく効くようにする */
 .recent-card-wrapper {
+  display: block;
+  width: 100%;
+  min-width: 0;
   opacity: 0;
   animation: cardSlideIn 0.5s ease-out forwards;
   cursor: pointer;

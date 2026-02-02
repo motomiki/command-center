@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import { getAllStudents } from '@/utils/mockDataHelpers';
 import { getCardsByStudentId } from '@/utils/mockDataHelpers';
 import type { Student } from '@/types/student';
+import AddStudentModal from './modals/AddStudentModal.vue';
 
 const router = useRouter();
 
@@ -47,6 +48,13 @@ const handleKeyDown = (e: KeyboardEvent, studentId: string) => {
     handleStudentClick(studentId);
   }
 };
+const handleSave = () => {
+  // 保存後にリストを更新するために、computedプロパティがリアクティブに反応するように
+  // 必要に応じてトリガーを引くか、getAllStudents()がリアクティブであることを確認します。
+  // 今回のmockDataHelpersはreactive配列を返しているので、自動で更新されるはずです。
+};
+
+const showAddModal = ref(false);
 </script>
 
 <template>
@@ -56,15 +64,23 @@ const handleKeyDown = (e: KeyboardEvent, studentId: string) => {
       <p class="page-description">生徒を選択してデータを入力・管理できます</p>
     </div>
 
-    <!-- 検索バー -->
-    <div class="search-bar">
-      <input
-        v-model="searchQuery"
-        type="text"
-        placeholder="🔍 生徒名で検索..."
-        class="search-input"
-        aria-label="生徒検索"
-      />
+    <!-- アクションバー -->
+    <div class="action-bar">
+      <!-- 検索バー -->
+      <div class="search-bar">
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="🔍 生徒名で検索..."
+          class="search-input"
+          aria-label="生徒検索"
+        />
+      </div>
+
+      <!-- 新規追加ボタン -->
+      <button class="add-student-btn" @click="showAddModal = true">
+        <span class="btn-icon">＋</span> 新規生徒を追加
+      </button>
     </div>
 
     <!-- 生徒カードグリッド -->
@@ -112,6 +128,13 @@ const handleKeyDown = (e: KeyboardEvent, studentId: string) => {
     <div v-if="filteredStudents.length === 0" class="empty-state">
       <p class="empty-message">検索結果が見つかりませんでした</p>
     </div>
+
+    <!-- 新規追加モーダル -->
+    <AddStudentModal
+      :show="showAddModal"
+      @close="showAddModal = false"
+      @saved="handleSave"
+    />
   </div>
 </template>
 
@@ -171,6 +194,58 @@ const handleKeyDown = (e: KeyboardEvent, studentId: string) => {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+}
+
+.action-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .action-bar {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+.search-bar {
+  flex: 1;
+  max-width: 500px;
+}
+
+.add-student-btn {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  padding: 0.875rem 1.5rem;
+  border-radius: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  white-space: nowrap;
+}
+
+.add-student-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(16, 185, 129, 0.3);
+  opacity: 0.9;
+}
+
+.add-student-btn:active {
+  transform: translateY(0);
+}
+
+.btn-icon {
+  font-size: 1.25rem;
 }
 
 .students-grid {

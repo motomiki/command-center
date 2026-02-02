@@ -23,9 +23,6 @@ const props = defineProps<Props>();
 // 生徒データ
 const student = computed(() => {
   const studentData = getStudentById(props.studentId);
-  if (!studentData) {
-    throw new Error(`Student with id ${props.studentId} not found`);
-  }
   return studentData;
 });
 
@@ -56,9 +53,9 @@ const selectedGachaCard = ref<CardData | undefined>(
 );
 
 // ガチャ結果のハンドラー
-const handleCardOpened = (card: CardData) => {
+const handleCardOpened = async (card: CardData) => {
   console.log('カードが開封されました:', card);
-  openCard(card.id); // カードを開封済みに設定
+  await openCard(card.id); // カードを開封済みに設定
   // カードが開封されたら、ギャラリーセクションに移動するオプション
   // currentSection.value = 'gallery';
 };
@@ -86,8 +83,14 @@ const minecraftCards = computed(() => {
 
     <!-- メインコンテンツ -->
     <div class="dashboard-content">
+      <!-- ローディング表示 -->
+      <div v-if="!student" class="loading-container">
+        <div class="loading-spinner"></div>
+        <p>データを読み込んでいます...</p>
+      </div>
+
       <!-- ホームセクション -->
-      <Transition name="section-fade" mode="out-in">
+      <Transition v-else name="section-fade" mode="out-in">
         <div v-if="currentSection === 'home'" key="home" class="section-content">
           <StudentHome
             :student="student"
@@ -167,16 +170,40 @@ const minecraftCards = computed(() => {
   background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
 }
 
-/* 横画面（ランドスケープ）対応 */
+/* タブレット 1280x800: 縦方向を有効活用しファーストビューでカードが見えるように */
+@media (max-height: 900px) {
+  .dashboard-content {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .section-header {
+    margin-bottom: 1rem;
+  }
+
+  .gacha-controls {
+    margin-bottom: 1rem;
+  }
+
+  .section-hint {
+    margin-top: 1rem;
+  }
+
+  .minecraft-grid {
+    margin-bottom: 1rem;
+  }
+}
+
+/* 横画面（ランドスケープ）極端に低い場合 */
 @media (orientation: landscape) and (max-height: 500px) {
   .dashboard-content {
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
   }
-  
+
   .section-header {
     font-size: 1.5rem;
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
   }
 }
 
@@ -391,6 +418,29 @@ const minecraftCards = computed(() => {
     animation: none;
     transition: none;
   }
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  color: white;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>
 

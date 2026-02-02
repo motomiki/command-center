@@ -1,3 +1,4 @@
+import { get, set } from 'idb-keyval';
 import { reactive } from 'vue';
 import type { Student, TypingRecord, MinecraftProject } from '@/types/student';
 import type { CardData, Rarity } from '@/types/card';
@@ -6,57 +7,97 @@ import { mockStudents as initialStudents, mockCards as initialCards } from '@/da
 const STORAGE_KEY_STUDENTS = 'campusclub_students_v1';
 const STORAGE_KEY_CARDS = 'campusclub_cards_v1';
 
+// Legacy localStorage keys (for one-time migration)
+const LEGACY_KEY_STUDENTS = 'campusclub_students_v1';
+const LEGACY_KEY_CARDS = 'campusclub_cards_v1';
+
 // Internal State (Reactive)
 const students = reactive<Student[]>([]);
 const cards = reactive<CardData[]>([]);
 
-// Initialize Data
-const initData = () => {
+let initPromise: Promise<void> | null = null;
+
+/**
+ * Save students to IndexedDB.
+ */
+const saveStudents = async (): Promise<void> => {
+  await set(STORAGE_KEY_STUDENTS, JSON.parse(JSON.stringify(students)));
+};
+
+/**
+ * Save cards to IndexedDB.
+ */
+const saveCards = async (): Promise<void> => {
+  await set(STORAGE_KEY_CARDS, JSON.parse(JSON.stringify(cards)));
+};
+
+/**
+ * Initialize data from IndexedDB, with one-time migration from localStorage if needed.
+ */
+const initData = async (): Promise<void> => {
   try {
-    const savedStudents = localStorage.getItem(STORAGE_KEY_STUDENTS);
-    const savedCards = localStorage.getItem(STORAGE_KEY_CARDS);
+    const savedStudents = await get<Student[]>(STORAGE_KEY_STUDENTS);
+    const savedCards = await get<CardData[]>(STORAGE_KEY_CARDS);
 
     let finalStudents: Student[];
-    if (savedStudents) {
-      finalStudents = JSON.parse(savedStudents);
+    if (savedStudents != null && Array.isArray(savedStudents) && savedStudents.length >= 0) {
+      finalStudents = savedStudents;
     } else {
-      finalStudents = JSON.parse(JSON.stringify(initialStudents));
+      const fromLs = localStorage.getItem(LEGACY_KEY_STUDENTS);
+      if (fromLs) {
+        try {
+          finalStudents = JSON.parse(fromLs);
+          await set(STORAGE_KEY_STUDENTS, finalStudents);
+        } catch {
+          finalStudents = JSON.parse(JSON.stringify(initialStudents));
+        }
+      } else {
+        finalStudents = JSON.parse(JSON.stringify(initialStudents));
+      }
     }
-    students.splice(0, students.length, ...finalStudents);
 
     let finalCards: CardData[];
-    if (savedCards) {
-      finalCards = JSON.parse(savedCards);
+    if (savedCards != null && Array.isArray(savedCards) && savedCards.length >= 0) {
+      finalCards = savedCards;
     } else {
-      finalCards = JSON.parse(JSON.stringify(initialCards));
+      const fromLs = localStorage.getItem(LEGACY_KEY_CARDS);
+      if (fromLs) {
+        try {
+          finalCards = JSON.parse(fromLs);
+          await set(STORAGE_KEY_CARDS, finalCards);
+        } catch {
+          finalCards = JSON.parse(JSON.stringify(initialCards));
+        }
+      } else {
+        finalCards = JSON.parse(JSON.stringify(initialCards));
+      }
     }
-    cards.splice(0, cards.length, ...finalCards);
 
-    if (!savedStudents || !savedCards) {
-      saveStudents();
-      saveCards();
-    }
+    students.splice(0, students.length, ...finalStudents);
+    cards.splice(0, cards.length, ...finalCards);
   } catch (e) {
-    console.error('Failed to load data from localStorage', e);
+    console.error('Failed to load data from IndexedDB', e);
     students.splice(0, students.length, ...JSON.parse(JSON.stringify(initialStudents)));
     cards.splice(0, cards.length, ...JSON.parse(JSON.stringify(initialCards)));
   }
 };
 
-const saveStudents = () => {
-  localStorage.setItem(STORAGE_KEY_STUDENTS, JSON.stringify(students));
-};
+/**
+ * Ensures data is loaded. Call before relying on students/cards if needed early.
+ */
+export function ensureDataReady(): Promise<void> {
+  if (!initPromise) {
+    initPromise = initData();
+  }
+  return initPromise;
+}
 
-const saveCards = () => {
-  localStorage.setItem(STORAGE_KEY_CARDS, JSON.stringify(cards));
-};
-
-// Initialize on load
-initData();
+// Initialize on load (async; reactive arrays populate when done)
+initPromise = initData();
 
 /**
  * データ操作ユーティリティ関数
- * LocalStorageのデータを操作する
+ * IndexedDB（idb-keyval）のデータを操作する
  */
 
 /**
@@ -142,68 +183,107 @@ export function getCardById(cardId: string): CardData | undefined {
 /**
  * タイピング記録を追加
  */
-export function addTypingRecord(
+export async function addTypingRecord(
   studentId: string,
   record: TypingRecord
-): void {
+): Promise<void> {
   const student = getStudentById(studentId);
   if (!student) {
     throw new Error(`Student with id ${studentId} not found`);
   }
   student.typingHistory.push(record);
-  saveStudents();
+  await saveStudents();
 }
 
 /**
  * Minecraft成果物を追加
  */
-export function addMinecraftProject(
+export async function addMinecraftProject(
   studentId: string,
   project: MinecraftProject
-): void {
+): Promise<void> {
   const student = getStudentById(studentId);
   if (!student) {
     throw new Error(`Student with id ${studentId} not found`);
   }
   student.projects.push(project);
-  saveStudents();
+  await saveStudents();
 }
 
 /**
  * カードを生成
  */
-export function createCard(cardData: Omit<CardData, 'id'>): CardData {
+export async function createCard(cardData: Omit<CardData, 'id'>): Promise<CardData> {
   const newCard: CardData = {
     ...cardData,
     id: `card-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
   };
   cards.push(newCard);
-  saveCards();
-  return newCard;
+  try {
+    await saveCards();
+    return newCard;
+  } catch (e) {
+    cards.pop();
+    throw e;
+  }
+}
+
+/**
+ * 生徒を追加
+ */
+export async function addStudent(
+  studentData: Omit<Student, 'id' | 'typingHistory' | 'projects'>
+): Promise<Student> {
+  const newStudent: Student = {
+    ...studentData,
+    id: `student-${Date.now()}`,
+    typingHistory: [],
+    projects: [],
+  };
+  students.push(newStudent);
+  try {
+    await saveStudents();
+    return newStudent;
+  } catch (e) {
+    students.pop();
+    throw e;
+  }
 }
 
 /**
  * 生徒情報を更新
  */
-export function updateStudent(
+export async function updateStudent(
   studentId: string,
   updates: Partial<Omit<Student, 'id'>>
-): void {
+): Promise<void> {
   const student = getStudentById(studentId);
   if (!student) {
     throw new Error(`Student with id ${studentId} not found`);
   }
+  const backup = JSON.parse(JSON.stringify(student));
   Object.assign(student, updates);
-  saveStudents();
+  try {
+    await saveStudents();
+  } catch (e) {
+    Object.assign(student, backup);
+    throw e;
+  }
 }
 
 /**
  * カードを開封済みにする (New helper for Gacha)
  */
-export function openCard(cardId: string): void {
+export async function openCard(cardId: string): Promise<void> {
   const card = getCardById(cardId);
   if (card) {
+    const wasOpened = card.isOpened;
     card.isOpened = true;
-    saveCards();
+    try {
+      await saveCards();
+    } catch (e) {
+      card.isOpened = wasOpened;
+      throw e;
+    }
   }
 }

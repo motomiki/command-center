@@ -181,7 +181,7 @@ const diffColor = computed(() => {
               <div class="detail-meta">
                 <div class="meta-item">
                   <span class="meta-label">レアリティ</span>
-                  <span class="meta-value">{{ getRarityDisplayName(card.rarity) }}</span>
+                  <span class="meta-value">{{ getRarityDisplayName(card.rarity || 'C') }}</span>
                 </div>
                 <div class="meta-item">
                   <span class="meta-label">獲得日</span>
@@ -358,10 +358,13 @@ const diffColor = computed(() => {
   }
 }
 
+/* カードに幅を渡し、SsrCard の aspect-ratio が正しく効くようにする */
 .card-section {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  min-width: 0;
+  margin: 0 auto;
 }
 
 .details-section {

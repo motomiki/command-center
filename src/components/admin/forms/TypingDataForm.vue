@@ -82,7 +82,7 @@ const handleSubmit = async () => {
       diffFromLast,
     };
 
-    addTypingRecord(props.studentId, newRecord);
+    await addTypingRecord(props.studentId, newRecord);
 
     const feedback = diffFromLast > 0 ? `前回より ${diffFromLast}UP! 🚀` : '記録を保存しました';
     addToast('保存完了', feedback, 'success');

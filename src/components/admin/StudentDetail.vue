@@ -1,13 +1,18 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { getStudentById } from '@/utils/mockDataHelpers';
+import { getStudentById, updateStudent } from '@/utils/mockDataHelpers';
+import { resizeAvatarDataUrl } from '@/utils/avatarResize';
 import TypingDataForm from './forms/TypingDataForm.vue';
 import MinecraftDataForm from './forms/MinecraftDataForm.vue';
 import CardGenerationForm from './forms/CardGenerationForm.vue';
+import AiAvatarGenerator from './AiAvatarGenerator.vue';
+import { useToast } from '@/composables/useToast';
 
 const router = useRouter();
 const route = useRoute();
+
+const { addToast } = useToast();
 
 const studentId = computed(() => route.params.studentId as string);
 
@@ -19,11 +24,27 @@ const student = computed(() => {
   return studentData;
 });
 
+const isEditingIcon = ref(false);
+const newAvatarUrl = ref('');
+
 type TabType = 'typing' | 'minecraft' | 'card';
 const activeTab = ref<TabType>('typing');
 
 const handleBack = () => {
   router.push('/admin');
+};
+
+const handleUpdateIcon = async () => {
+  if (!newAvatarUrl.value) return;
+  try {
+    const urlToSave = await resizeAvatarDataUrl(newAvatarUrl.value);
+    await updateStudent(studentId.value, { avatarUrl: urlToSave });
+    addToast('アイコンを更新しました', undefined, 'success');
+    isEditingIcon.value = false;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '更新に失敗しました';
+    addToast('更新に失敗しました', message, 'error');
+  }
 };
 </script>
 
@@ -35,23 +56,44 @@ const handleBack = () => {
         ← 戻る
       </button>
       <div class="student-header-info">
-        <div class="student-avatar-large">
-          <img
-            v-if="student.avatarUrl"
-            :src="student.avatarUrl"
-            :alt="`${student.name}のアバター`"
-            class="avatar-image"
-            loading="lazy"
-          />
-          <div v-else class="avatar-placeholder">
-            {{ student.name.charAt(0) }}
+        <div class="avatar-section">
+          <div class="student-avatar-large">
+            <img
+              v-if="student.avatarUrl"
+              :src="student.avatarUrl"
+              :alt="`${student.name}のアバター`"
+              class="avatar-image"
+              loading="lazy"
+            />
+            <div v-else class="avatar-placeholder">
+              {{ student.name.charAt(0) }}
+            </div>
           </div>
+          <button @click="isEditingIcon = !isEditingIcon" class="edit-avatar-btn">
+            {{ isEditingIcon ? 'キャンセル' : '📷 アイコン変更' }}
+          </button>
         </div>
         <div class="student-header-text">
           <h2 class="student-name-large">{{ student.name }}</h2>
           <p class="student-id">ID: {{ student.id }}</p>
         </div>
       </div>
+
+      <!-- アイコン編集エリア -->
+      <Transition name="expand">
+        <div v-if="isEditingIcon" class="icon-edit-panel">
+          <AiAvatarGenerator
+            v-model:avatarUrl="newAvatarUrl"
+            :initial-avatar-url="student.avatarUrl"
+            :student-name="student.name"
+          />
+          <div class="edit-actions">
+            <button @click="handleUpdateIcon" :disabled="!newAvatarUrl" class="save-icon-btn">
+              このアイコンを保存する
+            </button>
+          </div>
+        </div>
+      </Transition>
     </div>
 
     <!-- タブナビゲーション -->
@@ -133,13 +175,20 @@ const handleBack = () => {
 
 .student-header-info {
   display: flex;
+  align-items: flex-start;
+  gap: 2rem;
+}
+
+.avatar-section {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 1.5rem;
+  gap: 0.75rem;
 }
 
 .student-avatar-large {
-  width: 80px;
-  height: 80px;
+  width: 100px;
+  height: 100px;
   border-radius: 50%;
   overflow: hidden;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -147,6 +196,71 @@ const handleBack = () => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.edit-avatar-btn {
+  padding: 0.5rem 1rem;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.edit-avatar-btn:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.icon-edit-panel {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+  animation: slideDown 0.3s ease-out;
+}
+
+.edit-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+
+.save-icon-btn {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.save-icon-btn:hover:not(:disabled) {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+.save-icon-btn:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.expand-enter-active, .expand-leave-active {
+  transition: all 0.3s ease;
+}
+.expand-enter-from, .expand-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
 }
 
 .avatar-image {
@@ -162,7 +276,7 @@ const handleBack = () => {
   align-items: center;
   justify-content: center;
   color: white;
-  font-size: 2rem;
+  font-size: 2.5rem;
   font-weight: bold;
 }
 

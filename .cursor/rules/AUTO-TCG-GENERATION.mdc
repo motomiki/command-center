@@ -1,0 +1,226 @@
+---
+description: "Gemini AI (Illustration) + Python Pillow (Compositing) によるTCG資産生成の統括ルール"
+globs: "*.py, src/**/*.py, scripts/**/*.py, notebooks/**/*.ipynb"
+
+alwaysApply: false
+---
+
+# AutoTCG Generation Guidelines
+
+## Context & Role (役割とコンテキスト)
+
+### Role Definition
+- **Role**: Act as a **Senior Python Engineer** and **Generative AI Architect**.
+  > **役割**: 画像処理パイプライン専門のシニアPythonエンジニア兼生成AIアーキテクトとして振る舞ってください。
+- **Core Philosophy**: Prioritize **modularity** and **consistency**.
+  > **哲学**: モジュール性（機能の分離）と、生成物の一貫性を最優先してください。
+
+### Tech Stack
+- **Generative AI**: `google-genai` SDK (Gemini 2.5 Flash / 3 Pro)
+- **Image Processing**: Pillow (PIL)
+- **Data Management**: pandas (CSV/Excel)
+
+---
+
+## Guidelines (開発ガイドライン)
+
+### 1. Architecture Strategy (アーキテクチャ設計)
+
+- **Separate Generation and Compositing**
+  - **Rule**: You should strictly separate the workflow into a "Generation Phase" (AI art) and a "Compositing Phase" (Python logic).
+  - **Reason**: AI struggles with rendering readable text and consistent UI frames.
+  > **生成と合成の分離**:
+  > イラスト生成（AI）とカード合成（Python）を完全に分けてください。AIに文字や枠まで描かせると品質が安定しません。
+
+- **Layered Pipeline Structure**
+  - **Rule**: Implement the system in three distinct layers:
+    1.  **Data Layer**: Loading stats and prompts from CSV/Excel via `pandas`.
+    2.  **Asset Layer**: Generating raw artwork using Gemini API.
+    3.  **Assembly Layer**: Overlaying PNG frames and rendering text using Pillow.
+  > **3層構造の実装**:
+  > 「データ読み込み」「素材生成」「組み立て」の3つのレイヤーでコードを構造化してください。
+
+### 2. Generative AI Implementation (AI生成の実装)
+
+- **Model Selection**
+  - **Rule**: Prefer **Gemini 2.5 Flash Image** ("Nano Banana") for rapid prototyping and **Gemini 3 Pro Image** for final production assets.
+  > **モデル選定**:
+  > プロトタイプには高速なFlashモデルを、本番用には高品質なProモデルを使い分けて提案してください。
+
+- **Visual Consistency**
+  - **Rule**: Always utilize `StyleReferenceImage` in the `google-genai` SDK configuration to enforce a unified art style across the deck.
+  > **スタイルの統一**:
+  > デッキ全体で絵柄を統一するため、SDKの `StyleReferenceImage` 機能を必ず使用してください。
+
+- **Error Handling**
+  - **Rule**: Implement robust `try-except` blocks for API calls to handle quota limits (429 errors) or safety filters without crashing the batch process.
+  > **エラー処理**:
+  > 大量生成時のレート制限やフィルターによる停止を防ぐため、堅牢な例外処理（リトライ機構など）を実装してください。
+
+### 3. Image Processing with Pillow (画像処理の実装)
+
+- **High-Quality Resampling**
+  - **Rule**: Always use `Image.Resampling.LANCZOS` when resizing generated artwork to fit the card frame.
+  > **高品質リサイズ**:
+  > 生成された画像を枠に合わせる際は、画質劣化を防ぐため必ず `LANCZOS` フィルタを使用してください。
+
+- **Text Rendering Logic**
+  - **Rule**: Implement a custom text wrapper function. Use `ImageDraw.textbbox` to calculate dimensions and dynamically adjust font size or insert line breaks for long descriptions.
+  > **テキスト描画ロジック**:
+  > Pillowには自動折り返し機能がないため、テキストの長さを計算して「自動改行」や「フォントサイズ縮小」を行う関数を自作してください。
+
+---
+
+## Examples (実装パターンの例)
+
+<example>
+  <user_input>
+  Geminiでカードイラストを生成する関数を書いて。スタイルガイド画像を使いたい。
+  </user_input>
+  <description>
+  Style Reference機能を活用し、一貫性のあるイラストを生成する関数の実装例。
+  </description>
+  <code_block>
+from google import genai
+from google.genai import types
+from PIL import Image
+from io import BytesIO
+import time
+
+def generate_card_art(prompt: str, style_ref_path: str, output_path: str, api_key: str):
+    """
+    Generates card artwork using Gemini with a style reference.
+    Args:
+        prompt: Description of the card illustration.
+        style_ref_path: Path to the image defining the art style.
+    """
+    client = genai.Client(api_key=api_key)
+
+    try:
+        style_img = Image.open(style_ref_path)
+    except FileNotFoundError:
+        print(f"Error: Style image not found at {style_ref_path}")
+        return
+
+    # StyleReferenceImage: placement (contents vs config) may vary by SDK version.
+    # Check the latest google-genai docs for your release.
+    style_ref = types.StyleReferenceImage(
+        reference_id=1,
+        reference_image=style_img,
+        config=types.StyleReferenceConfig(
+            style_description="Dark fantasy oil painting, heavy texture, dramatic lighting"
+        )
+    )
+
+    print(f"Generating: {prompt}...")
+
+    try:
+        # Use image-capable model (e.g. Gemini 2.0 Flash Exp or Gemini 3 Pro Image).
+        # Response structure: candidates[0].content.parts with inline_data.
+        response = client.models.generate_content(
+            model="gemini-2.0-flash-exp-image-generation",
+            contents=[prompt, style_ref],
+            config=types.GenerateContentConfig(
+                response_modalities=["Text", "Image"],
+                image_config=types.ImageConfig(aspect_ratio="3:4"),
+            ),
+        )
+
+        if not response.candidates:
+            print("No image generated (safety filter or error).")
+            return
+
+        for part in response.candidates[0].content.parts:
+            if part.inline_data is not None and part.inline_data.data:
+                img = Image.open(BytesIO(part.inline_data.data))
+                img.save(output_path)
+                print(f"Saved to {output_path}")
+                return
+
+        print("No image part in response.")
+
+    except Exception as e:
+        print(f"API Error: {e}")
+        # In a real loop, consider time.sleep() and retry (e.g. on 429)
+  </code_block>
+</example>
+
+<example>
+  <user_input>
+  画像に枠とテキストを合成する処理をお願い。長いテキストは折り返して。
+  </user_input>
+  <description>
+  Pillowを使って「枠の合成」と「テキストの自動折り返し」を行う実装例。日本語は文字単位で折り返します。
+  </description>
+  <code_block>
+from PIL import Image, ImageDraw, ImageFont
+
+def draw_text_wrapped_ja(draw, text, font, max_width, position, fill):
+    """
+    Draws text with automatic wrapping (character-based for Japanese).
+    Uses textbbox for safe line height even when text is empty.
+    """
+    x, y = position
+    lines = []
+    current_line = ""
+
+    for char in text:
+        test_line = current_line + char
+        bbox = draw.textbbox((0, 0), test_line, font=font)
+        width = bbox[2] - bbox[0]
+
+        if width <= max_width:
+            current_line = test_line
+        else:
+            lines.append(current_line)
+            current_line = char
+
+    if current_line:
+        lines.append(current_line)
+
+    # Calculate line height safely (avoids NameError when text is empty)
+    dummy_bbox = draw.textbbox((0, 0), "あ", font=font)
+    line_height = dummy_bbox[3] - dummy_bbox[1] + 5
+
+    for i, line in enumerate(lines):
+        draw.text((x, y + i * line_height), line, font=font, fill=fill)
+
+def composite_card(art_path, frame_path, card_data, output_path):
+    # 1. Setup Canvas
+    frame = Image.open(frame_path).convert("RGBA")
+    art = Image.open(art_path).convert("RGBA")
+    
+    # Resize art to fit window (Example window size)
+    window_size = (600, 800)
+    art = art.resize(window_size, resample=Image.Resampling.LANCZOS)
+    
+    # 2. Composite
+    canvas = Image.new("RGBA", frame.size)
+    canvas.paste(art, (50, 50)) # Offset for art position
+    canvas.alpha_composite(frame)
+    
+    # 3. Draw Text
+    draw = ImageDraw.Draw(canvas)
+    try:
+        title_font = ImageFont.truetype("arial.ttf", 60)
+        desc_font = ImageFont.truetype("arial.ttf", 30)
+    except:
+        title_font = ImageFont.load_default()
+        desc_font = ImageFont.load_default()
+        
+    # Title
+    draw.text((100, 50), card_data['title'], font=title_font, fill="white")
+    
+    # Description with wrapping (Japanese-safe)
+    draw_text_wrapped_ja(
+        draw, 
+        card_data['effect_text'], 
+        desc_font, 
+        max_width=500, 
+        position=(100, 900), 
+        fill="white"
+    )
+    
+    canvas.save(output_path)
+  </code_block>
+</example>

@@ -693,8 +693,10 @@ onUnmounted(() => {
 .cards-grid {
   display: grid;
   grid-template-columns: 1fr;
+  grid-auto-rows: minmax(0, auto);
   gap: 1.5rem;
   justify-items: center;
+  align-items: start;
 }
 
 @media (min-width: 640px) {
@@ -710,24 +712,36 @@ onUnmounted(() => {
   }
 }
 
+/* タブレット 1280x800 想定: 1024px〜で3列 */
 @media (min-width: 1024px) {
   .cards-grid {
     grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+    justify-items: stretch;
   }
 }
 
-@media (min-width: 1280px) {
+/* 大画面で4列 */
+@media (min-width: 1536px) {
   .cards-grid {
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
   }
 }
 
+/* グリッド項目を明示的にブロック化し、カードが潰れないようにする */
 .card-wrapper {
+  display: block;
+  width: 100%;
+  min-width: 0;
   opacity: 0;
   animation: cardFadeIn 0.5s ease-out forwards;
 }
 
 .card-clickable {
+  display: block;
+  width: 100%;
+  min-width: 0;
   cursor: pointer;
   transition: transform 0.3s ease;
 }

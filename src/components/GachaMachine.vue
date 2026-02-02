@@ -4,6 +4,7 @@ import confetti from 'canvas-confetti';
 import type { CardData, Rarity } from '@/types/card';
 import type { GachaState } from '@/types/gacha';
 import SsrCard from './SsrCard.vue';
+import GachaScene from './GachaScene.vue';
 import { getRarityDisplayName } from '@/utils/rarity';
 import { placeholders } from '@/utils/placeholder';
 
@@ -50,13 +51,19 @@ const availableCard = computed<CardData | null>(() => {
       studentId: 'unknown',
       date: new Date().toISOString().split('T')[0],
       title: props.dailyResult.message || 'ガチャカード',
-      description: props.dailyResult.message,
+      description: props.dailyResult.message || '',
       imageUrl: props.dailyResult.imageUrl,
-      rarity: props.dailyResult.rarity,
+      rarity: props.dailyResult.rarity as Rarity || 'C' as Rarity,
       isOpened: false,
+      type: 'typing', // デフォルトの種類
     };
   }
   return null;
+});
+
+// Three.js シーンの有効化状態
+const isSceneActive = computed(() => {
+  return gachaState.value === 'revealing' || gachaState.value === 'opened';
 });
 
 // ガチャが実行可能かどうか
@@ -86,18 +93,18 @@ const spinGacha = () => {
   gachaState.value = 'spinning';
 
   // スピン中のタイマー
-  const { spin, reveal } = getRarityDuration(card.rarity);
+  const { spin, reveal } = getRarityDuration(card.rarity || 'C');
   spinTimeoutId.value = window.setTimeout(() => {
     gachaState.value = 'revealing';
-    
-    // レアリティ別のエフェクト
-    if (['UR', 'SR'].includes(card.rarity)) {
-      fireConfetti(card.rarity);
-    }
+
+    // 全レアリティで紙吹雪演出（多層: 第1波 → 第2波 → 第3波）
+    fireConfetti(card.rarity || 'C');
 
     // 排出中のタイマー
     revealTimeoutId.value = window.setTimeout(() => {
       gachaState.value = 'opened';
+      // 開封完了時も全レアリティで祝福演出
+      fireConfettiOnOpened(card.rarity || 'C');
       emit('card-opened', card);
       emit('gacha-complete', card);
     }, reveal);
@@ -118,39 +125,185 @@ const resetGacha = () => {
   currentCard.value = null;
 };
 
-// 紙吹雪エフェクト
-const fireConfetti = (rarity: Rarity) => {
-  const colors = rarity === 'UR' 
-    ? ['#9333EA', '#EC4899', '#F472B6', '#A855F7'] // 紫/ピンク系
-    : ['#FF8C00', '#FF7F50', '#FF6347', '#FFA500']; // オレンジ系
+// 紙吹雪エフェクト（zIndex を高くしてオーバーレイより前面に表示）
+const CONFETTI_Z_INDEX = 3000;
 
-  // メインの紙吹雪
+/** レアリティ別の紙吹雪演出パラメータ */
+interface ConfettiSettings {
+  colors: string[];
+  particleCount: number;
+  spread: number;
+  startVelocity: number;
+  scalar?: number;
+  gravity?: number;
+  drift?: number;
+  /** サイドキャノン（第2波）を行うか */
+  hasSideCannon: boolean;
+  /** スローフォール（第3波）の粒子数（0で省略） */
+  slowFallCount: number;
+}
+
+const getConfettiSettings = (rarity: Rarity): ConfettiSettings => {
+  const profiles: Record<Rarity, ConfettiSettings> = {
+    UR: {
+      colors: ['#FFD700', '#FFFFFF', '#FF69B4', '#9333EA', '#EC4899', '#FBBF24'],
+      particleCount: 280,
+      spread: 100,
+      startVelocity: 38,
+      scalar: 1.2,
+      gravity: 0.8,
+      drift: 0,
+      hasSideCannon: true,
+      slowFallCount: 120,
+    },
+    SR: {
+      colors: ['#EA580C', '#FF8C00', '#FF7F50', '#FBBF24', '#FFA500', '#FFD54F'],
+      particleCount: 200,
+      spread: 85,
+      startVelocity: 35,
+      scalar: 1.1,
+      gravity: 0.9,
+      drift: 0,
+      hasSideCannon: true,
+      slowFallCount: 90,
+    },
+    RR: {
+      colors: ['#0066FF', '#00AAFF', '#4FC3F7', '#81D4FA', '#B3E5FC'],
+      particleCount: 150,
+      spread: 75,
+      startVelocity: 32,
+      scalar: 1,
+      gravity: 1,
+      drift: 0,
+      hasSideCannon: true,
+      slowFallCount: 60,
+    },
+    R: {
+      colors: ['#00AA44', '#22C55E', '#4ADE80', '#86EFAC', '#BBF7D0'],
+      particleCount: 120,
+      spread: 65,
+      startVelocity: 28,
+      scalar: 1,
+      gravity: 1,
+      drift: 0,
+      hasSideCannon: false,
+      slowFallCount: 50,
+    },
+    U: {
+      colors: ['#94A3B8', '#CBD5E1', '#E2E8F0', '#F1F5F9', '#A8E6CF'],
+      particleCount: 80,
+      spread: 55,
+      startVelocity: 24,
+      scalar: 0.9,
+      gravity: 1.1,
+      drift: 0,
+      hasSideCannon: false,
+      slowFallCount: 35,
+    },
+    C: {
+      colors: ['#A8E6CF', '#DCEDC1', '#FFD3B5', '#FFAAA5', '#FF8B94'],
+      particleCount: 55,
+      spread: 50,
+      startVelocity: 22,
+      scalar: 0.85,
+      gravity: 1.2,
+      drift: 0,
+      hasSideCannon: false,
+      slowFallCount: 25,
+    },
+  };
+  return profiles[rarity];
+};
+
+/** 第1波: カード出現時の中心からの爆発（全レアリティ） */
+const fireConfettiWave1 = (rarity: Rarity) => {
+  const s = getConfettiSettings(rarity);
   confetti({
-    particleCount: rarity === 'UR' ? 250 : 200,
-    spread: 70,
+    particleCount: s.particleCount,
+    spread: s.spread,
     origin: { y: 0.6 },
-    colors: colors,
+    startVelocity: s.startVelocity,
+    colors: s.colors,
+    zIndex: CONFETTI_Z_INDEX,
+    scalar: s.scalar ?? 1,
+    gravity: s.gravity ?? 1,
+    drift: s.drift ?? 0,
   });
+};
 
-  // URの場合は追加の紙吹雪
-  if (rarity === 'UR') {
-    setTimeout(() => {
-      confetti({
-        particleCount: 100,
-        angle: 60,
-        spread: 55,
-        origin: { x: 0 },
-        colors: colors,
-      });
-      confetti({
-        particleCount: 100,
-        angle: 120,
-        spread: 55,
-        origin: { x: 1 },
-        colors: colors,
-      });
-    }, 250);
-  }
+/** 第2波: 左右からのサイドキャノン（UR/SR/RR のみ） */
+const fireConfettiWave2 = (rarity: Rarity) => {
+  const s = getConfettiSettings(rarity);
+  if (!s.hasSideCannon) return;
+  const count = Math.floor(s.particleCount * 0.4);
+  const opts = {
+    particleCount: count,
+    angle: 60,
+    spread: 55,
+    origin: { x: 0, y: 0.55 },
+    startVelocity: 28,
+    colors: s.colors,
+    zIndex: CONFETTI_Z_INDEX,
+    scalar: s.scalar ?? 1,
+    gravity: s.gravity ?? 1,
+  };
+  confetti(opts);
+  confetti({
+    ...opts,
+    angle: 120,
+    origin: { x: 1, y: 0.55 },
+  });
+};
+
+/** 第3波: 画面上部からゆっくり降り注ぐ余韻（全レアリティ・強度は設定に依存） */
+const fireConfettiWave3 = (rarity: Rarity) => {
+  const s = getConfettiSettings(rarity);
+  if (s.slowFallCount <= 0) return;
+  confetti({
+    particleCount: s.slowFallCount,
+    spread: 100,
+    origin: { y: 0 },
+    startVelocity: 15,
+    colors: s.colors,
+    zIndex: CONFETTI_Z_INDEX,
+    scalar: (s.scalar ?? 1) * 0.9,
+    gravity: 0.6,
+    drift: 0.5,
+  });
+};
+
+/** 多層紙吹雪: 第1波 → 第2波（高レアのみ） → 第3波 */
+const fireConfetti = (rarity: Rarity) => {
+  fireConfettiWave1(rarity);
+  setTimeout(() => {
+    fireConfettiWave2(rarity);
+  }, 220);
+  setTimeout(() => {
+    fireConfettiWave3(rarity);
+  }, 450);
+};
+
+/** 開封完了時（opened）の紙吹雪：全レアリティで両サイドから祝福（強度はレアリティに応じて調整） */
+const fireConfettiOnOpened = (rarity: Rarity) => {
+  const s = getConfettiSettings(rarity);
+  const count = Math.max(40, Math.floor(s.particleCount * 0.35));
+  const opts = {
+    particleCount: count,
+    angle: 60,
+    spread: 58,
+    origin: { x: 0, y: 0.5 },
+    startVelocity: 26,
+    colors: s.colors,
+    zIndex: CONFETTI_Z_INDEX,
+    scalar: s.scalar ?? 1,
+    gravity: s.gravity ?? 1,
+  };
+  confetti(opts);
+  confetti({
+    ...opts,
+    angle: 120,
+    origin: { x: 1, y: 0.5 },
+  });
 };
 
 // レアリティ別のグローエフェクトスタイル
@@ -213,7 +366,7 @@ onUnmounted(() => {
         class="machine" 
         :class="{ 
           'shake-anim': gachaState === 'spinning',
-          [currentCard ? getShakeIntensity(currentCard.rarity) : '']: gachaState === 'spinning' && currentCard
+          [currentCard ? getShakeIntensity(currentCard.rarity || 'C') : '']: gachaState === 'spinning' && currentCard
         }"
         :data-state="gachaState"
       >
@@ -254,13 +407,19 @@ onUnmounted(() => {
         <span v-else-if="gachaState === 'spinning'">スキャン中...</span>
         <span v-else-if="gachaState === 'revealing'">排出中...</span>
       </button>
+      
+      <!-- Three.js アニメーションシーン -->
+      <GachaScene 
+        :isActive="isSceneActive" 
+        :rarity="currentCard?.rarity" 
+      />
 
       <!-- 排出中のカード表示 -->
       <div v-if="gachaState === 'revealing' && currentCard" class="card-reveal-preview">
         <div 
           class="card-preview" 
-          :data-rarity="currentCard.rarity"
-          :style="{ boxShadow: getRarityGlowStyle(currentCard.rarity) }"
+          :data-rarity="currentCard.rarity || 'C'"
+          :style="{ boxShadow: getRarityGlowStyle(currentCard.rarity || 'C') }"
         >
           <div class="card-preview-glow"></div>
           <img 
@@ -270,7 +429,7 @@ onUnmounted(() => {
             loading="lazy"
             @error="(e) => { (e.target as HTMLImageElement).src = placeholders.cardU('Card'); }"
           />
-          <div class="card-preview-rarity">{{ getRarityDisplayName(currentCard.rarity) }} ゲット！！</div>
+          <div class="card-preview-rarity">{{ getRarityDisplayName(currentCard.rarity || 'C') }} ゲット！！</div>
         </div>
       </div>
     </div>
@@ -278,8 +437,15 @@ onUnmounted(() => {
     <!-- 開封済みの表示（SsrCard.vueを使用） -->
     <div v-else-if="gachaState === 'opened' && currentCard" class="card-reveal-container">
       <div class="card-reveal-overlay" @click.self="resetGacha">
+        <GachaScene
+          :isActive="true"
+          :rarity="currentCard.rarity"
+          class="card-reveal-scene"
+        />
         <div class="card-reveal-content">
-          <SsrCard :card="currentCard" />
+          <div class="card-reveal-card-wrapper">
+            <SsrCard :card="currentCard" />
+          </div>
           <button 
             @click="resetGacha" 
             class="close-btn"
@@ -733,13 +899,28 @@ onUnmounted(() => {
   justify-content: center;
 }
 
+.card-reveal-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
 .card-reveal-content {
   position: relative;
+  z-index: 10;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2rem;
   animation: scale-in 0.4s ease-out;
+}
+
+/* 開封カードに幅を渡し、SsrCard の aspect-ratio が正しく効くようにする */
+.card-reveal-card-wrapper {
+  display: block;
+  width: 280px;
+  max-width: 90vw;
+  min-width: 0;
 }
 
 .close-btn {

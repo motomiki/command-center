@@ -1,0 +1,8 @@
+{
+  "style_description": "Tech fantasy, warm lighting, consistent character style, suitable for children",
+  "prompt_templates": {
+    "typing": "タイピング練習の成果を祝う、キーボードと星が輝くカードイラスト",
+    "minecraft": "Minecraftの建造物やブロックをモチーフにした、温かみのあるイラスト",
+    "default": "小学生向けの明るく楽しいカードイラスト"
+  }
+}

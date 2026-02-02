@@ -16,7 +16,7 @@
   }
   
   const props = withDefaults(defineProps<Props>(), {
-    rarity: 'UR' as Rarity,
+    rarity: 'C' as Rarity,
   });
   
   // CardDataから値を取得するか、個別プロパティから取得する
@@ -193,7 +193,7 @@
   
   <template>
     <div 
-      class="relative w-[320px] h-[480px] group select-none"
+      class="ssr-card-root relative w-full aspect-[2/3] group select-none"
       @mousemove="handleMouseMove"
       @mouseleave="handleMouseLeave"
     >
@@ -212,9 +212,9 @@
         
         <div :class="rarityGradientBg">
           
-          <div class="relative h-full w-full bg-slate-900 rounded-lg overflow-hidden flex flex-col">
+          <div class="relative h-full w-full min-h-0 bg-slate-900 rounded-lg overflow-hidden flex flex-col">
             
-            <div class="relative h-[65%] w-full overflow-hidden">
+            <div class="relative h-[65%] min-h-0 w-full overflow-hidden flex-shrink-0 bg-gray-900">
               <img 
                 :src="cardImageUrl" 
                 :alt="cardTitle" 
@@ -233,7 +233,7 @@
               <h3 :class="rarityTitleGradient">
                 {{ cardTitle }}
               </h3>
-              <p v-if="cardDescription" :class="rarityTextColor">
+              <p v-if="cardDescription" :class="rarityTextColor" class="line-clamp-2">
                 {{ cardDescription }}
               </p>
             </div>
@@ -263,6 +263,11 @@
   </template>
   
   <style scoped>
+  /* 親から幅が渡らない場合でもカードが潰れないよう最小幅を確保 */
+  .ssr-card-root {
+    min-width: 160px;
+  }
+
   /* ノイズテクスチャ（画像のっぺり感を消す） */
   .bg-noise {
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");

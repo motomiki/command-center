@@ -136,10 +136,10 @@ const handleSubmit = async () => {
       makeCodeUrl: formData.value.makeCodeUrl.trim() || undefined,
     };
 
-    addMinecraftProject(props.studentId, newProject);
+    await addMinecraftProject(props.studentId, newProject);
 
     // ダッシュボードに表示するためのカードも作成
-    createCard({
+    await createCard({
       studentId: props.studentId,
       date: formData.value.createdAt,
       title: formData.value.title.trim(),
@@ -147,6 +147,7 @@ const handleSubmit = async () => {
       imageUrl: finalScreenshotUrl || placeholders.minecraftScreenshot('Minecraft'),
       rarity: 'R', // デフォルトでRare
       isOpened: false, // ガチャ未開封
+      type: 'minecraft',
       minecraftData: {
         modelUrl: finalModelUrl,
         screenshotUrl: finalScreenshotUrl,

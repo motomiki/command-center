@@ -37,7 +37,7 @@ export function filterCardsByRarity(
   if (rarities.length === 0) {
     return cards;
   }
-  return cards.filter((card) => rarities.includes(card.rarity));
+  return cards.filter((card) => card.rarity && rarities.includes(card.rarity));
 }
 
 /**
@@ -128,7 +128,7 @@ export function sortCards(
         comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
         break;
       case 'rarity':
-        comparison = RARITY_ORDER[a.rarity] - RARITY_ORDER[b.rarity];
+        comparison = RARITY_ORDER[a.rarity || 'C'] - RARITY_ORDER[b.rarity || 'C'];
         break;
       case 'title':
         comparison = a.title.localeCompare(b.title, 'ja');
@@ -165,7 +165,7 @@ export function getCardStatistics(cards: CardData[]): CardStatistics {
 
   cards.forEach((card) => {
     // レアリティ別のカウント
-    statistics.byRarity[card.rarity]++;
+    statistics.byRarity[card.rarity || 'C']++;
 
     // 開封状態のカウント
     if (card.isOpened) {
