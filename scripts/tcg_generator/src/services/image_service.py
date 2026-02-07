@@ -31,8 +31,8 @@ from src.core.models import CardData, Rarity
 from src.utils.text_layout import draw_text_wrapped_ja, get_line_height, wrap_text_ja
 
 # テキスト描画位置（枠レイアウトに合わせて調整）
-TITLE_POSITION = (140, 652)
-DESC_POSITION = (135, 735)
+TITLE_POSITION = (190, 628)
+DESC_POSITION = (130, 718)
 TEXT_FILL = (255, 255, 255)
 # 説明文のみ黒系（DESC_POSITION 付近の背景とのコントラスト用）
 DESC_TEXT_FILL = (0, 0, 0)
@@ -182,7 +182,14 @@ def composite_card(
     line_height_title = get_line_height(draw, title_font, LINE_SPACING)
     tx, ty = TITLE_POSITION
     for i, line in enumerate(title_lines):
-        draw.text((tx, ty + i * line_height_title), line, font=title_font, fill=TEXT_FILL)
+        draw.text(
+            (tx, ty + i * line_height_title),
+            line,
+            font=title_font,
+            fill=TEXT_FILL,
+            stroke_width=1,
+            stroke_fill=TEXT_FILL,
+        )
 
     # 説明（折り返し＋禁則）
     draw_text_wrapped_ja(
