@@ -1,6 +1,7 @@
 """
 TCG Generator 設定の一元管理。
 環境変数・定数・パスをここで定義し、他モジュールから参照する。
+GEMINI_API_KEY は環境変数、または tcg_generator 直下の .env に記載。
 """
 from __future__ import annotations
 
@@ -12,6 +13,15 @@ _CURRENT_DIR = Path(__file__).resolve().parent
 _SRC_DIR = _CURRENT_DIR.parent
 _PROJECT_ROOT = _SRC_DIR.parent
 
+# .env を読み込み（未設定時のみ。環境変数が優先）
+try:
+    from dotenv import load_dotenv
+    _env_path = _PROJECT_ROOT / ".env"
+    if _env_path.exists():
+        load_dotenv(_env_path)
+except ImportError:
+    pass
+
 # --- ディレクトリ ---
 ASSETS_DIR = _PROJECT_ROOT / "assets"
 FRAMES_DIR = ASSETS_DIR / "frames"
@@ -20,6 +30,10 @@ STYLES_DIR = ASSETS_DIR / "styles"
 OVERLAYS_DIR = ASSETS_DIR / "overlays"
 DATA_DIR = _PROJECT_ROOT / "data"
 OUTPUT_DIR = _PROJECT_ROOT / "output"
+
+# --- カスタム枠を有効にするレアリティ（ここに含まれるものだけ frames/{rarity}.png を参照）---
+# 微調整時はまず UR のみ有効にし、他レアはフォールバック枠を使用する。
+CUSTOM_FRAME_RARITIES: frozenset[str] = frozenset({"UR"})
 
 # --- デフォルトファイル名 ---
 DEFAULT_STYLE_REF = "style_ref.png"
@@ -34,12 +48,13 @@ CARD_HEIGHT = 840
 ART_WINDOW_WIDTH = 520
 ART_WINDOW_HEIGHT = 680
 ART_WINDOW_OFFSET_X = 40
-ART_WINDOW_OFFSET_Y = 120
+ART_WINDOW_OFFSET_Y = 70
 
 # --- API ---
+# 画像生成対応モデル（Nano Banana）。旧 gemini-2.0-flash-exp-image-generation は非対応のため変更
 ENV_API_KEY = "GEMINI_API_KEY"
-DEFAULT_MODEL_FAST = "gemini-2.0-flash-exp-image-generation"
-DEFAULT_MODEL_QUALITY = "gemini-2.0-flash-exp-image-generation"
+DEFAULT_MODEL_FAST = "gemini-2.5-flash-image"
+DEFAULT_MODEL_QUALITY = "gemini-3-pro-image-preview"
 
 # --- リトライ ---
 MAX_RETRIES = 5

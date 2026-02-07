@@ -45,12 +45,15 @@ def _load_style_image(style_ref_path: Path) -> Image.Image:
 
 
 def _build_prompt(card: CardData, style_description: str) -> str:
-    """AI 用プロンプトを組み立てる。"""
+    """AI 用プロンプトを組み立てる。四隅を四角に保つため Full Bleed・枠禁止を明示する。"""
     return (
-        f"Create a single illustration for a TCG card. "
+        f"Create a single illustration to be used as card artwork (the image only, no frame). "
         f"Style: {style_description}. "
         f"Subject/prompt: {card.prompt}. "
-        f"Do not include any text, logos, or UI elements in the image."
+        f"Do not include any text, logos, or UI elements in the image. "
+        f"Full bleed image: the illustration must extend to all edges with no margins. "
+        f"No border, no frame, no rounded corners. Square corners and sharp edges only. "
+        f"Fill the entire canvas edge to edge."
     ).strip()
 
 
@@ -78,27 +81,27 @@ def generate_card_art(
 
     Raises:
         ValueError: API Key 未設定
-        FileNotFoundError: スタイル画像がない
         RuntimeError: 生成失敗（リトライ後も）
     """
     from google.genai import types
 
     client = _get_client()
     path = style_ref_path or get_style_ref_path()
-    style_img = _load_style_image(path)
     model = DEFAULT_MODEL_QUALITY if model_kind == "quality" else DEFAULT_MODEL_FAST
     prompt = _build_prompt(card, style_description)
 
-    buf = BytesIO()
-    style_img.save(buf, format="PNG")
-    img_bytes = buf.getvalue()
-
-    contents = [
-        prompt,
-        types.Part.from_bytes(data=img_bytes, mime_type="image/png"),
-    ]
+    # スタイル参照画像があれば含める（なければプロンプトのみで生成）
+    if path.exists():
+        style_img = _load_style_image(path)
+        buf = BytesIO()
+        style_img.save(buf, format="PNG")
+        img_bytes = buf.getvalue()
+        contents = [prompt, types.Part.from_bytes(data=img_bytes, mime_type="image/png")]
+    else:
+        logger.info("スタイル参照画像がありません (%s)。プロンプトのみで生成します。", path)
+        contents = [prompt]
     config = types.GenerateContentConfig(
-        response_modalities=["IMAGE"],
+        response_modalities=["TEXT", "IMAGE"],
         image_config=types.ImageConfig(aspect_ratio="3:4"),
     )
 

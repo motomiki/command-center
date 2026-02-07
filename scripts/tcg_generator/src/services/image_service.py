@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+from io import BytesIO
 from pathlib import Path
 from typing import Union
 
@@ -16,9 +17,9 @@ from src.core.config import (
     ART_WINDOW_WIDTH,
     CARD_HEIGHT,
     CARD_WIDTH,
+    CUSTOM_FRAME_RARITIES,
     DESC_FONT_SIZE,
     DESC_MAX_WIDTH,
-    FRAMES_DIR,
     get_font_path,
     get_frame_path,
     OVERLAYS_DIR,
@@ -30,20 +31,45 @@ from src.core.models import CardData, Rarity
 from src.utils.text_layout import draw_text_wrapped_ja, get_line_height, wrap_text_ja
 
 # テキスト描画位置（枠レイアウトに合わせて調整）
-TITLE_POSITION = (40, 40)
-DESC_POSITION = (40, 720)
+TITLE_POSITION = (140, 652)
+DESC_POSITION = (135, 735)
 TEXT_FILL = (255, 255, 255)
+# 説明文のみ黒系（DESC_POSITION 付近の背景とのコントラスト用）
+DESC_TEXT_FILL = (0, 0, 0)
 TEXT_STROKE_FILL = (0, 0, 0)
 
 
 def _load_image(source: Union[Path, str, "Image.Image"]) -> Image.Image:
-    """パスまたは PIL Image から RGBA 画像を返す。"""
+    """パス・文字列または PIL Image（および image-like）から RGBA 画像を返す。"""
+    if isinstance(source, (Path, str)):
+        path = Path(source)
+        if not path.exists():
+            raise FileNotFoundError(f"画像が見つかりません: {path}")
+        return Image.open(path).convert("RGBA")
+    # PIL Image
     if isinstance(source, Image.Image):
         return source.convert("RGBA")
-    path = Path(source)
-    if not path.exists():
-        raise FileNotFoundError(f"画像が見つかりません: {path}")
-    return Image.open(path).convert("RGBA")
+    if hasattr(source, "convert") and callable(source.convert):
+        return source.convert("RGBA")
+    # google.genai の part.as_image() など別モジュールの Image 型
+    if type(source).__name__ == "Image":
+        # 1. 生データを優先: バイト列があればそのまま PIL で読み込む（save/load 不要）
+        for attr in ("data", "_image_bytes", "image_bytes"):
+            raw = getattr(source, attr, None)
+            if isinstance(raw, (bytes, bytearray)):
+                return Image.open(BytesIO(raw)).convert("RGBA")
+        # 2. save が必要な場合: format 非対応のオブジェクトには save(buf) のみでフォールバック
+        if hasattr(source, "save") and callable(source.save):
+            buf = BytesIO()
+            try:
+                source.save(buf, format="PNG")
+            except TypeError:
+                source.save(buf)
+            buf.seek(0)
+            return Image.open(buf).convert("RGBA")
+    raise TypeError(
+        f"art_image は Path / str / PIL Image のいずれかで指定してください。got {type(source).__name__!r}"
+    )
 
 
 def _create_placeholder_art(width: int, height: int) -> Image.Image:
@@ -59,11 +85,20 @@ def _create_placeholder_art(width: int, height: int) -> Image.Image:
 
 
 def _get_frame_image(card: CardData, frames_dir: Path | None = None) -> Image.Image:
-    """レアリティに応じた枠画像を読み込む。なければ単色枠を生成。"""
+    """レアリティに応じた枠画像を読み込む。CUSTOM_FRAME_RARITIES に含まれるレアのみファイルを参照し、他は単色枠を生成。"""
+    if card.rarity.value not in CUSTOM_FRAME_RARITIES:
+        return _create_fallback_frame(card)
     path = get_frame_path(card.rarity.value, frames_dir)
-    if path.exists():
-        return Image.open(path).convert("RGBA")
-    # 枠画像がない場合は透明枠＋角だけ色付きの簡易枠
+    if not path.exists():
+        return _create_fallback_frame(card)
+    frame = Image.open(path).convert("RGBA")
+    if frame.size != (CARD_WIDTH, CARD_HEIGHT):
+        frame = frame.resize((CARD_WIDTH, CARD_HEIGHT), resample=Image.Resampling.LANCZOS)
+    return frame
+
+
+def _create_fallback_frame(card: CardData) -> Image.Image:
+    """枠画像がない場合の透明枠＋角だけ色付きの簡易枠。"""
     frame = Image.new("RGBA", (CARD_WIDTH, CARD_HEIGHT), (0, 0, 0, 0))
     draw = ImageDraw.Draw(frame)
     border_color = (200, 180, 120, 255) if card.rarity in (Rarity.SR, Rarity.UR) else (120, 120, 120, 200)
@@ -156,7 +191,7 @@ def composite_card(
         desc_font,
         DESC_MAX_WIDTH,
         DESC_POSITION,
-        TEXT_FILL,
+        DESC_TEXT_FILL,
         line_spacing=LINE_SPACING,
         apply_kinsoku=True,
     )

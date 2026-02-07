@@ -33,6 +33,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--output", "-o", type=str, default=None, help="出力ファイルパス（単発時）。未指定なら output/card_001.png 等")
     p.add_argument("--file", "-f", type=str, default=None, help="バッチ用 CSV パス（title,prompt,rarity,description,card_id 等）")
     p.add_argument("--preview", action="store_true", help="AI生成をスキップし、プレースホルダーでテキストレイアウトのみ確認")
+    p.add_argument("--art-image", "-a", type=str, default=None, help="既存のイラスト画像パス（指定時はAI生成せずこの画像で合成；--preview と併用可）")
     p.add_argument("--style-ref", type=str, default=None, help="スタイル参照画像のパス")
     p.add_argument("--model", type=str, default="fast", choices=["fast", "quality"], help="画像生成モデル")
     p.add_argument("--out-dir", type=str, default=None, help="出力ディレクトリ（バッチ時・単発で --output 未指定時）")
@@ -54,19 +55,30 @@ def build_card(row: dict) -> CardData:
 
 def run_single(args: argparse.Namespace) -> None:
     """1枚生成。"""
-    if not args.title or not args.prompt:
-        print("単発モードでは --title と --prompt が必須です。", file=sys.stderr)
+    if not args.title:
+        print("単発モードでは --title が必須です。", file=sys.stderr)
+        sys.exit(1)
+    if not args.preview and not args.art_image and not args.prompt:
+        print("AI生成する場合は --prompt が必須です。--preview または --art-image でスキップできます。", file=sys.stderr)
         sys.exit(1)
     card = CardData(
         title=args.title,
         description=args.description or "",
         rarity=rarity_from_string(args.rarity),
-        prompt=args.prompt,
+        prompt=args.prompt or "カードのイラスト",
     )
     out_dir = get_output_dir(args.out_dir)
     output_path = Path(args.output) if args.output else out_dir / "card_001.png"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
+    if args.art_image:
+        art_path = Path(args.art_image)
+        if not art_path.exists():
+            print(f"イラスト画像が見つかりません: {art_path}", file=sys.stderr)
+            sys.exit(1)
+        composite_card(card, art_image=art_path, output_path=output_path)
+        print(f"保存しました: {output_path}")
+        return
     if args.preview:
         composite_card(card, art_image=None, output_path=output_path, use_placeholder_art=True)
         print(f"プレビュー保存: {output_path}")

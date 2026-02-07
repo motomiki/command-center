@@ -42,14 +42,16 @@ function parseRetryAfterSeconds(err: unknown): number | undefined {
 }
 
 /**
- * プロンプトをTCG用に補強する（品質向上のための自動最適化）
+ * プロンプトをTCG用に補強する（品質向上のための自動最適化）。
+ * 四隅を四角に保つため、枠・フレーム・角丸を禁止し、全面描画（Full Bleed）を指示する。
  */
 function buildCardPrompt(userPrompt: string, title: string): string {
   const base = userPrompt.trim() || title.trim() || 'トレーディングカード';
   const style =
     '高品質なイラスト、ファンタジーまたはテック風、子ども向けで温かみのある画風。';
   const constraint =
-    'カード用の正方形に近い構図。画像内に文字やロゴは描かないでください。';
+    '画像の端まで完全に描かれた、余白のないイラストにしてください。枠線、フレーム、角丸は禁止。画像内に文字やロゴは描かないでください。' +
+    ' Full bleed image, no border, no frame, square corners and sharp edges, filling the entire canvas.';
   return `${style}テーマ: ${base}。${constraint}`;
 }
 

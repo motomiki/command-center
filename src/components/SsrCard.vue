@@ -177,6 +177,9 @@
     return ['UR', 'SR', 'RR', 'R'].includes(cardRarity.value);
   });
   
+  // URカードはカスタム画像フレーム（UR.png）を使用する
+  const isCustomFrame = computed(() => cardRarity.value === 'UR');
+
   // 光沢エフェクトの強度（レアリティに応じて調整）
   const shineEffectOpacity = computed(() => {
     const opacities = {
@@ -193,7 +196,8 @@
   
   <template>
     <div 
-      class="ssr-card-root relative w-full aspect-[2/3] group select-none"
+      class="ssr-card-root relative w-full group select-none"
+      :class="isCustomFrame ? 'aspect-[5/7]' : 'aspect-[2/3]'"
       @mousemove="handleMouseMove"
       @mouseleave="handleMouseLeave"
     >
@@ -204,10 +208,40 @@
   
       <div 
         ref="cardRef"
-        class="relative w-full h-full rounded-xl shadow-2xl overflow-hidden bg-gray-900 border-[6px] border-transparent"
+        class="relative w-full h-full rounded-xl shadow-2xl overflow-hidden bg-gray-900"
+        :class="isCustomFrame ? '' : 'border-[6px] border-transparent'"
         :style="cardStyle"
         style="will-change: transform;"
       >
+      <!-- UR Custom Frame Mode: 画像フレーム（UR.png）を使用 -->
+      <template v-if="isCustomFrame">
+        <div class="ur-frame-container absolute inset-0 rounded-lg overflow-hidden">
+          <!-- Art Image (フレームの下に配置) -->
+          <img 
+            :src="cardImageUrl" 
+            :alt="cardTitle" 
+            class="ur-art absolute object-cover"
+            loading="lazy"
+          />
+          <!-- Frame Overlay (UR.png) -->
+          <img
+            src="/images/frames/UR.png"
+            alt=""
+            class="absolute inset-0 w-full h-full object-fill pointer-events-none z-10"
+          />
+          <!-- Title -->
+          <h3 class="ur-title absolute z-20 font-bold font-serif text-white">
+            {{ cardTitle }}
+          </h3>
+          <!-- Description -->
+          <p v-if="cardDescription" class="ur-desc absolute z-20 text-black line-clamp-2">
+            {{ cardDescription }}
+          </p>
+        </div>
+      </template>
+
+      <!-- Standard Card Mode (UR以外のレアリティはすべて従来表示) -->
+      <template v-else>
         <div :class="rarityBorder"></div>
         
         <div :class="rarityGradientBg">
@@ -224,12 +258,12 @@
               />
               <div class="absolute inset-0 bg-noise opacity-30 mix-blend-overlay"></div>
             </div>
-  
+
             <div :class="rarityBottomContainer">
               <div :class="rarityBadgeStyle">
                 {{ getRarityBadgeName(cardRarity) }}
               </div>
-  
+
               <h3 :class="rarityTitleGradient">
                 {{ cardTitle }}
               </h3>
@@ -239,6 +273,7 @@
             </div>
           </div>
         </div>
+      </template>
   
         <div 
           class="absolute inset-0 pointer-events-none z-30 shine-effect"
@@ -361,9 +396,48 @@
     }
   }
   
-  /* 放射状グラデーション（Tailwind標準にないので追加） */
-  .bg-gradient-radial {
-    background-image: radial-gradient(circle at center, var(--tw-gradient-from), var(--tw-gradient-to));
-  }
-  </style>
+/* 放射状グラデーション（Tailwind標準にないので追加） */
+.bg-gradient-radial {
+  background-image: radial-gradient(circle at center, var(--tw-gradient-from), var(--tw-gradient-to));
+}
+
+/* =============================================
+   UR Custom Frame Mode
+   Python config.py の座標を CSS 百分率に変換:
+     Canvas: 600×840, Art: 520×680 @ (40, 70)
+     Title: (140, 652), Desc: (135, 735)
+   ============================================= */
+
+.ur-frame-container {
+  container-type: inline-size;
+  background-color: transparent;
+}
+
+/* Art image: offset (40, 70) on 600×840 canvas */
+.ur-art {
+  top: 8.333%;     /* 70 / 840 */
+  left: 6.667%;    /* 40 / 600 */
+  width: 86.667%;  /* 520 / 600 */
+  height: 80.952%; /* 680 / 840 */
+}
+
+/* Title: position (140, 652) on 600×840 canvas, font-size 36px */
+.ur-title {
+  top: 77.619%;    /* 652 / 840 */
+  left: 23.333%;   /* 140 / 600 */
+  right: 6.667%;   /* 右端マージン: 40 / 600 */
+  font-size: 6cqi; /* 36 / 600 × 100 */
+  line-height: 1.2;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* Description: position (135, 735) on 600×840 canvas, font-size 22px */
+.ur-desc {
+  top: 87.5%;         /* 735 / 840 */
+  left: 22.5%;        /* 135 / 600 */
+  right: 6.667%;      /* 右端マージン: 40 / 600 */
+  font-size: 3.667cqi; /* 22 / 600 × 100 */
+  line-height: 1.3;
+}
+</style>
 
