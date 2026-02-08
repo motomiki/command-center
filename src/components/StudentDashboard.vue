@@ -1,30 +1,72 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
+import type { Student } from '@/types/student';
 import type { CardData } from '@/types/card';
 import StudentNavigation, { type DashboardSection } from './StudentNavigation.vue';
 import StudentHome from './StudentHome.vue';
 import GachaMachine from './GachaMachine.vue';
 import CardGallery from './CardGallery.vue';
 import MinecraftViewer from './MinecraftViewer.vue';
-import { getStudentById } from '@/utils/mockDataHelpers';
-import {
-  getAllCards,
-  getUnopenedCardsByStudentId,
-  openCard,
-} from '@/utils/mockDataHelpers';
-import { getRarityDisplayName } from '@/utils/rarity';
+import { useRepository } from '@/composables/useRepository';
 
 interface Props {
   studentId: string; // 現在の生徒ID
 }
 
 const props = defineProps<Props>();
+const { students, cards: cardsRepo, sync, isSyncing } = useRepository();
 
-// 生徒データ
-const student = computed(() => {
-  const studentData = getStudentById(props.studentId);
-  return studentData;
-});
+// ---------------------------------------------------------------------------
+// 同期ステータス
+// ---------------------------------------------------------------------------
+const syncMessage = ref('');
+
+// ---------------------------------------------------------------------------
+// データ取得（非同期）
+// ---------------------------------------------------------------------------
+const student = ref<Student | null>(null);
+const studentCards = ref<CardData[]>([]);
+
+const fetchData = async () => {
+  const [s, c] = await Promise.all([
+    students.getById(props.studentId),
+    cardsRepo.getByStudentId(props.studentId),
+  ]);
+  student.value = s;
+  studentCards.value = c;
+};
+
+/**
+ * アプリ起動時に Supabase からデータを同期し、その後ローカルデータを再取得する。
+ * 同期に失敗してもキャッシュデータで動作を継続する。
+ */
+const initializeWithSync = async () => {
+  // まずキャッシュからデータを表示（高速）
+  await fetchData();
+
+  // バックグラウンドで同期を実行
+  try {
+    const result = await sync((msg) => {
+      syncMessage.value = msg;
+    });
+
+    if (result && result.success) {
+      // 同期成功: 最新データで画面を更新
+      await fetchData();
+      syncMessage.value = '';
+    } else if (result) {
+      console.warn('[Sync] 一部エラーあり:', result.errors);
+      syncMessage.value = '';
+    }
+    // result が null の場合は Supabase 未設定なので何もしない
+  } catch (e) {
+    console.warn('[Sync] 同期に失敗しましたが、キャッシュデータで動作を続行します', e);
+    syncMessage.value = '';
+  }
+};
+
+onMounted(initializeWithSync);
+watch(() => props.studentId, fetchData);
 
 // 現在のセクション
 const currentSection = ref<DashboardSection>('home');
@@ -44,20 +86,21 @@ const handleNavigateToGacha = () => {
 
 // ガチャ用の未開封カード
 const gachaTestCards = computed(() =>
-  getUnopenedCardsByStudentId(props.studentId)
+  studentCards.value.filter((c) => !c.isOpened)
 );
 
-// 現在選択されているガチャカード
-const selectedGachaCard = ref<CardData | undefined>(
-  gachaTestCards.value.length > 0 ? gachaTestCards.value[0] : undefined
-);
+// ナビゲーションの通知バッジ（未開封＝ガチャで回せる回数）
+const navBadges = computed(() => ({
+  gacha: gachaTestCards.value.length,
+}));
 
 // ガチャ結果のハンドラー
 const handleCardOpened = async (card: CardData) => {
   console.log('カードが開封されました:', card);
-  await openCard(card.id); // カードを開封済みに設定
-  // カードが開封されたら、ギャラリーセクションに移動するオプション
-  // currentSection.value = 'gallery';
+  await cardsRepo.markAsOpened(card.id);
+  // ローカルの状態も更新
+  const target = studentCards.value.find((c) => c.id === card.id);
+  if (target) target.isOpened = true;
 };
 
 const handleGachaComplete = (card: CardData) => {
@@ -66,10 +109,9 @@ const handleGachaComplete = (card: CardData) => {
 
 // MinecraftViewer用のカード（minecraftDataを持つカードから取得）
 const minecraftCards = computed(() => {
-  const allCards = getAllCards();
-  return allCards
-    .filter((card) => card.studentId === props.studentId && card.minecraftData && card.isOpened)
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // 新しい順にソート
+  return studentCards.value
+    .filter((card) => card.minecraftData && card.isOpened)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 });
 </script>
 
@@ -78,8 +120,17 @@ const minecraftCards = computed(() => {
     <!-- ナビゲーション -->
     <StudentNavigation
       :current-section="currentSection"
+      :badges="navBadges"
       @section-change="handleSectionChange"
     />
+
+    <!-- 同期インジケータ -->
+    <Transition name="sync-fade">
+      <div v-if="isSyncing" class="sync-indicator">
+        <div class="sync-spinner"></div>
+        <span class="sync-text">{{ syncMessage || 'データを更新中...' }}</span>
+      </div>
+    </Transition>
 
     <!-- メインコンテンツ -->
     <div class="dashboard-content">
@@ -101,32 +152,16 @@ const minecraftCards = computed(() => {
         <!-- ガチャセクション -->
         <div v-else-if="currentSection === 'gacha'" key="gacha" class="section-content">
           <div class="gacha-section">
-            <h2 class="section-header">🎰 ガチャマシン</h2>
-            <div v-if="gachaTestCards.length > 0" class="gacha-controls">
-              <div class="gacha-cards-selector">
-                <button
-                  v-for="card in gachaTestCards"
-                  :key="card.id"
-                  @click="selectedGachaCard = card"
-                  :class="[
-                    'gacha-select-btn',
-                    selectedGachaCard?.id === card.id ? 'active' : '',
-                  ]"
-                >
-                  {{ getRarityDisplayName(card.rarity || 'C') }}
-                </button>
-              </div>
-            </div>
             <div class="gacha-machine-wrapper">
               <GachaMachine
-                :card="selectedGachaCard"
+                :unopened-cards="gachaTestCards"
                 @card-opened="handleCardOpened"
                 @gacha-complete="handleGachaComplete"
               />
             </div>
             <div class="section-hint">
               <p>💡 レバーを回してガチャを回そう！レアリティによって演出が変わるよ！</p>
-              <p class="mt-2">キーボード: Enterキーでガチャ実行、Escキーで閉じる</p>
+              <p class="mt-2">キーボード: Enterキーでガチャ実行</p>
             </div>
           </div>
         </div>
@@ -178,10 +213,6 @@ const minecraftCards = computed(() => {
   }
 
   .section-header {
-    margin-bottom: 1rem;
-  }
-
-  .gacha-controls {
     margin-bottom: 1rem;
   }
 
@@ -276,43 +307,6 @@ const minecraftCards = computed(() => {
 /* ガチャセクション */
 .gacha-section {
   width: 100%;
-}
-
-.gacha-controls {
-  margin-bottom: 2rem;
-  display: flex;
-  justify-content: center;
-}
-
-.gacha-cards-selector {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  justify-content: center;
-}
-
-.gacha-select-btn {
-  padding: 0.75rem 1.5rem;
-  border-radius: 20px;
-  font-size: 0.875rem;
-  font-weight: bold;
-  background: rgba(255, 255, 255, 0.1);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.8);
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.gacha-select-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: translateY(-2px);
-}
-
-.gacha-select-btn.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-color: #667eea;
-  color: white;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
 .gacha-machine-wrapper {
@@ -441,6 +435,42 @@ const minecraftCards = computed(() => {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* 同期インジケータ */
+.sync-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(37, 99, 235, 0.2) 100%);
+  border-bottom: 1px solid rgba(59, 130, 246, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+.sync-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #60a5fa;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.sync-text {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.sync-fade-enter-active,
+.sync-fade-leave-active {
+  transition: opacity 0.3s ease, max-height 0.3s ease;
+}
+
+.sync-fade-enter-from,
+.sync-fade-leave-to {
+  opacity: 0;
 }
 </style>
 

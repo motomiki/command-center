@@ -76,4 +76,20 @@ AI（Gemini）によるアイコン生成の品質を上げるには、以下の
 2. **ガチャを回したか？**: 児童画面の「まいんくらふと」タブは、その作品のカードがガチャから排出（開封）されるまで表示されない仕様です。
 
 ---
+
+## 5. Supabase 接続（オプション）
+先生用・生徒用でデータを共有する場合は、Supabase を利用できます。
+
+### 設定手順
+1. [Supabase](https://supabase.com/) でプロジェクトを作成する。
+2. プロジェクトの **Settings → API** で **Project URL** と **anon (public) key** をコピーする。
+3. プロジェクトルートに `.env` を作成し、`.env.example` を参考に次の2つを設定する。
+   - `VITE_SUPABASE_URL` … Project URL
+   - `VITE_SUPABASE_ANON_KEY` … anon key
+4. 開発サーバーを再起動する（`npm run dev`）。
+5. 管理画面の **「🔌 Supabase接続テスト」** から接続を確認する。
+
+データベースのテーブル定義は `supabase/schema.sql` を参照し、Supabase ダッシュボードの SQL Editor で実行してください。
+
+---
 *制作：Google Deepmind x 放課後キャンパスクラブ*

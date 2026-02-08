@@ -195,9 +195,9 @@
   </script>
   
   <template>
+    <!-- 全レアリティ共通: 840×600（縦×横＝5:7）で統一 -->
     <div 
-      class="ssr-card-root relative w-full group select-none"
-      :class="isCustomFrame ? 'aspect-[5/7]' : 'aspect-[2/3]'"
+      class="ssr-card-root relative w-full group select-none aspect-[5/7]"
       @mousemove="handleMouseMove"
       @mouseleave="handleMouseLeave"
     >

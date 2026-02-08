@@ -1,28 +1,34 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { getStudentById, updateStudent } from '@/utils/mockDataHelpers';
+import { useRepository } from '@/composables/useRepository';
 import { resizeAvatarDataUrl } from '@/utils/avatarResize';
 import TypingDataForm from './forms/TypingDataForm.vue';
 import MinecraftDataForm from './forms/MinecraftDataForm.vue';
 import CardGenerationForm from './forms/CardGenerationForm.vue';
 import AiAvatarGenerator from './AiAvatarGenerator.vue';
 import { useToast } from '@/composables/useToast';
+import type { Student } from '@/types/student';
 
 const router = useRouter();
 const route = useRoute();
 
 const { addToast } = useToast();
+const { students: studentsRepo } = useRepository();
 
 const studentId = computed(() => route.params.studentId as string);
 
-const student = computed(() => {
-  const studentData = getStudentById(studentId.value);
-  if (!studentData) {
-    throw new Error(`Student with id ${studentId.value} not found`);
-  }
-  return studentData;
-});
+// ---------------------------------------------------------------------------
+// データ取得（非同期）
+// ---------------------------------------------------------------------------
+const student = ref<Student | null>(null);
+
+const fetchStudent = async () => {
+  student.value = await studentsRepo.getById(studentId.value);
+};
+
+onMounted(fetchStudent);
+watch(studentId, fetchStudent);
 
 const isEditingIcon = ref(false);
 const newAvatarUrl = ref('');
@@ -35,10 +41,11 @@ const handleBack = () => {
 };
 
 const handleUpdateIcon = async () => {
-  if (!newAvatarUrl.value) return;
+  if (!newAvatarUrl.value || !student.value) return;
   try {
     const urlToSave = await resizeAvatarDataUrl(newAvatarUrl.value);
-    await updateStudent(studentId.value, { avatarUrl: urlToSave });
+    student.value.avatarUrl = urlToSave;
+    await studentsRepo.save(student.value);
     addToast('アイコンを更新しました', undefined, 'success');
     isEditingIcon.value = false;
   } catch (error) {
@@ -50,6 +57,12 @@ const handleUpdateIcon = async () => {
 
 <template>
   <div class="student-detail-container">
+    <!-- ローディング -->
+    <div v-if="!student" class="loading-container">
+      <p>読み込み中...</p>
+    </div>
+
+    <template v-else>
     <!-- ヘッダー -->
     <div class="detail-header">
       <button @click="handleBack" class="back-button" aria-label="生徒一覧に戻る">
@@ -135,6 +148,7 @@ const handleUpdateIcon = async () => {
         </div>
       </Transition>
     </div>
+    </template>
   </div>
 </template>
 

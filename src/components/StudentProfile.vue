@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import type { Student } from '@/types/student';
-import { getCardsByStudentId } from '@/utils/mockDataHelpers';
+import type { CardData } from '@/types/card';
+import { useRepository } from '@/composables/useRepository';
 import { placeholders } from '@/utils/placeholder';
 import {
   calculateMotivation,
@@ -14,10 +15,20 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { cards: cardsRepo } = useRepository();
+
+// カードデータ（非同期取得）
+const cardsData = ref<CardData[]>([]);
+
+const loadCards = async () => {
+  cardsData.value = await cardsRepo.getByStudentId(props.student.id);
+};
+
+onMounted(loadCards);
+watch(() => props.student.id, loadCards);
 
 // 統計情報
-const cards = computed(() => getCardsByStudentId(props.student.id));
-const motivation = computed(() => calculateMotivation(props.student));
+const motivation = computed(() => calculateMotivation(props.student, cardsData.value));
 const typingStats = computed(() => getTypingStats(props.student.typingHistory));
 const minecraftStats = computed(() => getMinecraftStats(props.student.projects));
 
@@ -55,7 +66,7 @@ const formatDate = (dateString: string) => {
         <div class="stat-icon">📚</div>
         <div class="stat-info">
           <div class="stat-label">カード総数</div>
-          <div class="stat-value">{{ cards.length }}</div>
+          <div class="stat-value">{{ cardsData.length }}</div>
         </div>
       </div>
       <div class="stat-item">

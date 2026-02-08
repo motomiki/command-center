@@ -1,12 +1,19 @@
 import { set, get, del } from 'idb-keyval';
 
 /**
- * Saves a file (Blob) to IndexedDB and returns a unique key.
+ * Saves a file (Blob) to IndexedDB.
  * @param file The file to save
- * @returns The unique ID for the asset
+ * @param customId Optional — 指定した場合はそのキーで保存する。
+ *                 省略時は一意な ID を自動生成する。
+ * @returns 保存に使用したキー
  */
-export async function saveAsset(file: File | Blob): Promise<string> {
-  const id = `asset-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+export async function saveAsset(
+  file: File | Blob,
+  customId?: string,
+): Promise<string> {
+  const id =
+    customId ??
+    `asset-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   await set(id, file);
   return id;
 }
@@ -18,6 +25,16 @@ export async function saveAsset(file: File | Blob): Promise<string> {
  */
 export async function getAsset(id: string): Promise<Blob | undefined> {
   return await get(id);
+}
+
+/**
+ * Checks whether an asset with the given key exists in IndexedDB.
+ * @param id The unique ID of the asset
+ * @returns true if a value is stored for that key
+ */
+export async function assetExists(id: string): Promise<boolean> {
+  const value = await get(id);
+  return value != null;
 }
 
 /**

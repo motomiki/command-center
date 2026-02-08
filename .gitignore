@@ -26,3 +26,11 @@ dist-ssr
 # API key（コミットしない）
 .env
 
+# Python（scripts/tcg_generator など）
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+
+# TCG ジェネレータのプレビュー出力（生成物は Unused に退避する運用）
+scripts/tcg_generator/output/*.png

@@ -1,15 +1,30 @@
 <script setup lang="ts">
+import { useRouter } from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
+
 export type DashboardSection = 'home' | 'gacha' | 'gallery' | 'minecraft';
 
 interface Props {
   currentSection: DashboardSection;
+  /** タブごとの通知バッジ数（例: { gacha: 1 }） */
+  badges?: Record<string, number>;
 }
 
-defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  badges: () => ({}),
+});
 
 const emit = defineEmits<{
   'section-change': [section: DashboardSection];
 }>();
+
+const router = useRouter();
+const authStore = useAuthStore();
+
+const handleLogout = async () => {
+  await authStore.signOut();
+  await router.replace('/login');
+};
 
 // ナビゲーション項目（常に上部に表示）
 const navItems = [
@@ -22,6 +37,19 @@ const navItems = [
 const handleNavClick = (section: DashboardSection) => {
   emit('section-change', section);
 };
+
+function getBadgeCount(sectionId: string): number {
+  const n = props.badges?.[sectionId];
+  return typeof n === 'number' && n > 0 ? n : 0;
+}
+
+function getNavAriaLabel(item: { id: DashboardSection; label: string }): string {
+  const count = getBadgeCount(item.id);
+  if (count > 0) {
+    return `${item.label}（未開封${count}まい）セクションに移動`;
+  }
+  return `${item.label}セクションに移動`;
+}
 
 // キーボード操作
 const handleKeyDown = (e: KeyboardEvent, section: DashboardSection) => {
@@ -46,10 +74,30 @@ const handleKeyDown = (e: KeyboardEvent, section: DashboardSection) => {
           @keydown="(e) => handleKeyDown(e, item.id)"
           :class="['nav-button', { active: currentSection === item.id }]"
           :aria-current="currentSection === item.id ? 'page' : undefined"
-          :aria-label="`${item.label}セクションに移動`"
+          :aria-label="getNavAriaLabel(item)"
         >
-          <span class="nav-icon">{{ item.icon }}</span>
+          <span class="nav-icon-wrapper">
+            <span class="nav-icon">{{ item.icon }}</span>
+            <span
+              v-if="getBadgeCount(item.id) > 0"
+              class="nav-badge"
+              :aria-label="`未開封が${getBadgeCount(item.id)}まい`"
+            >
+              {{ getBadgeCount(item.id) > 99 ? '99+' : getBadgeCount(item.id) }}
+            </span>
+          </span>
           <span class="nav-label">{{ item.label }}</span>
+        </button>
+      </li>
+      <!-- ログアウトボタン -->
+      <li class="nav-item nav-item-logout" role="listitem">
+        <button
+          @click="handleLogout"
+          class="nav-button logout-button"
+          aria-label="ログアウト"
+        >
+          <span class="nav-icon">🚪</span>
+          <span class="nav-label">ログアウト</span>
         </button>
       </li>
     </ul>
@@ -130,14 +178,54 @@ const handleKeyDown = (e: KeyboardEvent, section: DashboardSection) => {
   border-radius: 2px 2px 0 0;
 }
 
+.nav-icon-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .nav-icon {
   font-size: 1.5rem;
   line-height: 1;
 }
 
+.nav-badge {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.5rem;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1.25rem;
+  color: #fff;
+  background: #ef4444;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
 .nav-label {
   font-size: 0.875rem;
   white-space: nowrap;
+}
+
+.nav-item-logout {
+  margin-left: auto;
+}
+
+.logout-button {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.logout-button:hover {
+  color: #fca5a5 !important;
+  background: rgba(239, 68, 68, 0.15) !important;
 }
 
 /* アクセシビリティ: アニメーションを好まないユーザー向け */

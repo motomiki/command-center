@@ -1,12 +1,9 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import type { CardData, Rarity } from '@/types/card';
 import SsrCard from './SsrCard.vue';
 import CardDetailModal from './CardDetailModal.vue';
-import {
-  getAllCards,
-  getCardsByStudentId,
-} from '@/utils/mockDataHelpers';
+import { useRepository } from '@/composables/useRepository';
 import {
   applyFilters,
   getCardStatistics,
@@ -20,6 +17,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { cards: cardsRepo } = useRepository();
 
 // 初期フィルタ状態
 const defaultFilters: FilterState = {
@@ -36,13 +34,22 @@ const filters = ref<FilterState>({
   ...props.initialFilters,
 });
 
-// カードデータの取得
-const allCards = computed(() => {
+// カードデータ（非同期取得）
+const cardsData = ref<CardData[]>([]);
+
+const loadCards = async () => {
   if (props.studentId) {
-    return getCardsByStudentId(props.studentId);
+    cardsData.value = await cardsRepo.getByStudentId(props.studentId);
+  } else {
+    cardsData.value = await cardsRepo.getAll();
   }
-  return getAllCards();
-});
+};
+
+onMounted(loadCards);
+watch(() => props.studentId, loadCards);
+
+// カードデータの取得
+const allCards = computed(() => cardsData.value);
 
 // フィルタリング・ソートされたカード
 const filteredCards = computed(() => {
@@ -101,7 +108,6 @@ const handleKeyDown = (e: KeyboardEvent) => {
 };
 
 // キーボードイベントのリスナーを追加
-import { onMounted, onUnmounted } from 'vue';
 onMounted(() => {
   window.addEventListener('keydown', handleKeyDown);
 });

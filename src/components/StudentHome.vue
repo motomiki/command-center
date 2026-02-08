@@ -1,19 +1,15 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import type { Student } from '@/types/student';
 import type { CardData } from '@/types/card';
 import SsrCard from './SsrCard.vue';
 import CardDetailModal from './CardDetailModal.vue';
-import {
-  getCardsByStudentId,
-  getUnopenedCardsByStudentId,
-} from '@/utils/mockDataHelpers';
+import { useRepository } from '@/composables/useRepository';
 import {
   calculateMotivation,
   getLatestCards,
   getHighestRarity,
   getTypingStats,
-  getMinecraftStats,
 } from '@/utils/studentStats';
 import { getRarityDisplayName } from '@/utils/rarity';
 import { placeholders } from '@/utils/placeholder';
@@ -24,15 +20,35 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { cards: cardsRepo } = useRepository();
 
+// ---------------------------------------------------------------------------
+// カードデータ（非同期取得）
+// ---------------------------------------------------------------------------
+const cardsData = ref<CardData[]>([]);
+
+const loadCards = async () => {
+  cardsData.value = await cardsRepo.getByStudentId(props.student.id);
+};
+
+onMounted(() => {
+  loadCards();
+  animateMotivation();
+});
+
+watch(() => props.student.id, loadCards);
+
+// ---------------------------------------------------------------------------
 // やる気値
-const motivation = computed(() => calculateMotivation(props.student));
+// ---------------------------------------------------------------------------
+const motivation = computed(() => calculateMotivation(props.student, cardsData.value));
 
 // やる気値のアニメーション
 const displayedMotivation = ref(0);
-onMounted(() => {
-  animateMotivation();
-});
+/** 表示用（小数点以下なし・子供向け） */
+const displayedMotivationRounded = computed(() =>
+  Math.round(displayedMotivation.value)
+);
 
 const animateMotivation = () => {
   const target = motivation.value;
@@ -48,7 +64,7 @@ const animateMotivation = () => {
     if (progress < 1) {
       requestAnimationFrame(animate);
     } else {
-      displayedMotivation.value = target;
+      displayedMotivation.value = Math.round(target);
     }
   };
   requestAnimationFrame(animate);
@@ -79,19 +95,32 @@ const motivationColor = computed(() => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// カード派生データ
+// ---------------------------------------------------------------------------
+
 // 未開封カード
 const unopenedCards = computed(() =>
-  getUnopenedCardsByStudentId(props.student.id)
+  cardsData.value.filter((c) => !c.isOpened)
 );
 
 // 統計情報
-const cards = computed(() => getCardsByStudentId(props.student.id));
-const highestRarity = computed(() => getHighestRarity(cards.value));
+const highestRarity = computed(() => getHighestRarity(cardsData.value));
 const typingStats = computed(() => getTypingStats(props.student.typingHistory));
-const minecraftStats = computed(() => getMinecraftStats(props.student.projects));
+// まいんくらふと作品数はマインクラフトタブと同じソース（開封済みかつ minecraftData ありのカード）で統一
+const minecraftStats = computed(() => {
+  const minecraftCards = cardsData.value.filter(
+    (card) => card.minecraftData && card.isOpened
+  );
+  return {
+    totalProjects: minecraftCards.length,
+    latestProject: null,
+    projectsByMonth: {} as Record<string, number>,
+  };
+});
 
-// 最近のカード（最新5枚）
-const latestCards = computed(() => getLatestCards(props.student.id, 5));
+// 最近のカード（最新6枚）
+const latestCards = computed(() => getLatestCards(cardsData.value, 6));
 
 // モーダル管理
 const selectedCard = ref<CardData | null>(null);
@@ -135,7 +164,7 @@ const handleNavigateToGacha = () => {
       <div class="motivation-container">
         <div class="motivation-header">
           <span class="motivation-label">きょうのやるき</span>
-          <span class="motivation-value">{{ displayedMotivation }}%</span>
+          <span class="motivation-value">{{ displayedMotivationRounded }}%</span>
         </div>
         <div class="motivation-bar-wrapper">
           <div
@@ -173,7 +202,7 @@ const handleNavigateToGacha = () => {
         <div class="stat-card">
           <div class="stat-icon">📚</div>
           <div class="stat-label">カード総数</div>
-          <div class="stat-value">{{ cards.length }}</div>
+          <div class="stat-value">{{ cardsData.length }}</div>
         </div>
         <div class="stat-card">
           <div class="stat-icon">⭐</div>

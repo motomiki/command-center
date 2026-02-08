@@ -1,9 +1,5 @@
 import type { Student, TypingRecord, MinecraftProject } from '@/types/student';
 import type { CardData, Rarity } from '@/types/card';
-import {
-  getCardsByStudentId,
-  getUnopenedCardsByStudentId,
-} from './mockDataHelpers';
 
 /**
  * タイピング統計情報の型定義
@@ -40,10 +36,15 @@ const RARITY_ORDER: Record<Rarity, number> = {
 /**
  * やる気値を計算
  * タイピング記録の改善度、カード獲得数、最近の活動頻度から算出（0-100）
+ *
  * @param student 生徒データ
+ * @param cards その生徒のカード一覧（外部から注入）
  * @returns やる気値（0-100）
  */
-export function calculateMotivation(student: Student): number {
+export function calculateMotivation(
+  student: Student,
+  cards: CardData[],
+): number {
   let motivation = 50; // ベース値
 
   // タイピング記録の改善度を評価（最大30ポイント）
@@ -59,18 +60,16 @@ export function calculateMotivation(student: Student): number {
   }
 
   // カード獲得数を評価（最大20ポイント）
-  const cards = getCardsByStudentId(student.id);
-  const cardCount = cards.length;
-  motivation += Math.min(cardCount * 2, 20);
+  motivation += Math.min(cards.length * 2, 20);
 
   // 最近の活動頻度を評価（最大20ポイント）
   const recentActivityDays = getRecentActivityDays(student);
   motivation += Math.min(recentActivityDays * 4, 20);
 
   // 未開封カードがある場合はボーナス（最大10ポイント）
-  const unopenedCards = getUnopenedCardsByStudentId(student.id);
-  if (unopenedCards.length > 0) {
-    motivation += Math.min(unopenedCards.length * 2, 10);
+  const unopenedCount = cards.filter((c) => !c.isOpened).length;
+  if (unopenedCount > 0) {
+    motivation += Math.min(unopenedCount * 2, 10);
   }
 
   return Math.min(Math.max(motivation, 0), 100);
@@ -108,17 +107,17 @@ function getRecentActivityDays(student: Student): number {
 }
 
 /**
- * 最新のカードを取得
- * @param studentId 生徒ID
+ * カード一覧から最新のものを取得
+ *
+ * @param cards カード一覧（外部から注入）
  * @param count 取得する枚数
  * @returns 最新のカードデータの配列
  */
 export function getLatestCards(
-  studentId: string,
-  count: number
+  cards: CardData[],
+  count: number,
 ): CardData[] {
-  const cards = getCardsByStudentId(studentId);
-  return cards
+  return [...cards]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, count);
 }

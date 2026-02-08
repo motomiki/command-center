@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
+const authStore = useAuthStore();
 
 const handleNavigateToStudent = () => {
   router.push('/student/student-1');
+};
+
+const handleLogout = async () => {
+  await authStore.signOut();
+  await router.replace('/login');
 };
 </script>
 
@@ -18,12 +25,26 @@ const handleNavigateToStudent = () => {
           <p class="admin-subtitle">Nano Banaan Dashboard</p>
         </div>
         <div class="header-right">
+          <RouterLink
+            to="/admin/supabase-test"
+            class="supabase-test-link"
+            active-class="active"
+          >
+            🔌 Supabase接続テスト
+          </RouterLink>
           <button
             @click="handleNavigateToStudent"
             class="switch-to-student-btn"
             aria-label="子ども用画面に切り替え"
           >
             👤 子ども用画面
+          </button>
+          <button
+            @click="handleLogout"
+            class="logout-btn"
+            aria-label="ログアウト"
+          >
+            🚪 ログアウト
           </button>
         </div>
       </div>
@@ -88,6 +109,13 @@ const handleNavigateToStudent = () => {
   gap: 0.25rem;
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 .admin-title {
   font-size: 1.75rem;
   font-weight: bold;
@@ -99,6 +127,27 @@ const handleNavigateToStudent = () => {
   font-size: 0.875rem;
   color: #64748b;
   margin: 0;
+}
+
+.supabase-test-link {
+  padding: 0.5rem 1rem;
+  min-height: 44px;
+  color: #1e3a8a;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 8px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.supabase-test-link:hover {
+  background: rgba(30, 58, 138, 0.08);
+  color: #2563eb;
+}
+
+.supabase-test-link.active {
+  background: rgba(30, 58, 138, 0.12);
+  color: #1d4ed8;
 }
 
 .switch-to-student-btn {
@@ -126,6 +175,33 @@ const handleNavigateToStudent = () => {
 .switch-to-student-btn:active {
   transform: translateY(0);
   box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+}
+
+.logout-btn {
+  padding: 0.875rem 1.5rem;
+  min-height: 44px;
+  min-width: 120px;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .logout-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.4);
+  }
+}
+
+.logout-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
 }
 
 .admin-main {
@@ -168,7 +244,8 @@ const handleNavigateToStudent = () => {
     font-size: 1.5rem;
   }
 
-  .switch-to-student-btn {
+  .switch-to-student-btn,
+  .logout-btn {
     width: 100%;
   }
 

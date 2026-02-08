@@ -280,6 +280,7 @@ watch([resolvedModelUrl, isVisible], () => {
 
 .makecode-link-container {
   @apply mt-4 flex justify-center;
+  padding-bottom: 1rem;
 }
 
 .makecode-link-button {

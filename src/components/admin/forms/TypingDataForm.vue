@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
-import { addTypingRecord, getTypingHistoryByStudentId } from '@/utils/mockDataHelpers';
+import { ref, watch, onMounted } from 'vue';
+import { useRepository } from '@/composables/useRepository';
 import { useToast } from '@/composables/useToast';
 import type { TypingRecord } from '@/types/student';
 
@@ -10,6 +10,7 @@ interface Props {
 
 const props = defineProps<Props>();
 const { addToast } = useToast();
+const { students } = useRepository();
 
 const DRAFT_KEY = 'typing_form_draft';
 
@@ -21,14 +22,17 @@ const formData = ref({
 
 const isSubmitting = ref(false);
 
-const typingHistory = computed(() => getTypingHistoryByStudentId(props.studentId));
+// タイピング履歴（非同期取得）
+const typingHistory = ref<TypingRecord[]>([]);
 
-// Draft Saving
-watch(formData, (newVal) => {
-  localStorage.setItem(DRAFT_KEY, JSON.stringify(newVal));
-}, { deep: true });
+const fetchHistory = async () => {
+  const student = await students.getById(props.studentId);
+  typingHistory.value = student?.typingHistory ?? [];
+};
 
-onMounted(() => {
+onMounted(async () => {
+  await fetchHistory();
+
   const savedDraft = localStorage.getItem(DRAFT_KEY);
   if (savedDraft) {
     try {
@@ -38,6 +42,13 @@ onMounted(() => {
     }
   }
 });
+
+watch(() => props.studentId, fetchHistory);
+
+// Draft Saving
+watch(formData, (newVal) => {
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(newVal));
+}, { deep: true });
 
 // 前回のスコアを取得してdiffFromLastを計算
 const calculateDiffFromLast = (): number => {
@@ -74,6 +85,11 @@ const handleSubmit = async () => {
   isSubmitting.value = true;
 
   try {
+    const student = await students.getById(props.studentId);
+    if (!student) {
+      throw new Error(`生徒が見つかりませんでした (ID: ${props.studentId})`);
+    }
+
     const diffFromLast = calculateDiffFromLast();
     const newRecord: TypingRecord = {
       date: formData.value.date,
@@ -82,7 +98,11 @@ const handleSubmit = async () => {
       diffFromLast,
     };
 
-    await addTypingRecord(props.studentId, newRecord);
+    student.typingHistory.push(newRecord);
+    await students.save(student);
+
+    // ローカル履歴を更新
+    typingHistory.value = [...student.typingHistory];
 
     const feedback = diffFromLast > 0 ? `前回より ${diffFromLast}UP! 🚀` : '記録を保存しました';
     addToast('保存完了', feedback, 'success');
@@ -92,7 +112,7 @@ const handleSubmit = async () => {
       score: 0,
       wpm: 0,
     };
-    
+
     localStorage.removeItem(DRAFT_KEY);
 
   } catch (error) {

@@ -1,37 +1,54 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { getAllStudents } from '@/utils/mockDataHelpers';
-import { getCardsByStudentId } from '@/utils/mockDataHelpers';
+import { useRepository } from '@/composables/useRepository';
 import type { Student } from '@/types/student';
+import type { CardData } from '@/types/card';
 import AddStudentModal from './modals/AddStudentModal.vue';
 
 const router = useRouter();
+const { students: studentsRepo, cards: cardsRepo } = useRepository();
 
-const students = computed(() => getAllStudents());
+// ---------------------------------------------------------------------------
+// データ取得（非同期）
+// ---------------------------------------------------------------------------
+const studentsList = ref<Student[]>([]);
+const allCards = ref<CardData[]>([]);
+
+const fetchData = async () => {
+  const [s, c] = await Promise.all([
+    studentsRepo.getAll(),
+    cardsRepo.getAll(),
+  ]);
+  studentsList.value = s;
+  allCards.value = c;
+};
+
+onMounted(fetchData);
+
 const searchQuery = ref('');
 
 // 検索フィルタリング
 const filteredStudents = computed(() => {
   if (!searchQuery.value.trim()) {
-    return students.value;
+    return studentsList.value;
   }
   const query = searchQuery.value.toLowerCase();
-  return students.value.filter(
+  return studentsList.value.filter(
     (student) => student.name.toLowerCase().includes(query)
   );
 });
 
 // 生徒のカード数を取得
 const getCardCount = (studentId: string): number => {
-  return getCardsByStudentId(studentId).length;
+  return allCards.value.filter((c) => c.studentId === studentId).length;
 };
 
 // 最新の活動日を取得
 const getLatestActivityDate = (student: Student): string => {
-  const cards = getCardsByStudentId(student.id);
+  const cards = allCards.value.filter((c) => c.studentId === student.id);
   if (cards.length === 0) return 'なし';
-  
+
   const dates = cards.map((card) => card.date).sort().reverse();
   return dates[0] || 'なし';
 };
@@ -48,10 +65,10 @@ const handleKeyDown = (e: KeyboardEvent, studentId: string) => {
     handleStudentClick(studentId);
   }
 };
+
+// 保存後にリストを更新
 const handleSave = () => {
-  // 保存後にリストを更新するために、computedプロパティがリアクティブに反応するように
-  // 必要に応じてトリガーを引くか、getAllStudents()がリアクティブであることを確認します。
-  // 今回のmockDataHelpersはreactive配列を返しているので、自動で更新されるはずです。
+  fetchData();
 };
 
 const showAddModal = ref(false);

@@ -2,7 +2,7 @@
 import { ref, watch, computed, onMounted } from 'vue';
 import DropZone from '@/components/common/DropZone.vue';
 import SsrCard from '@/components/SsrCard.vue';
-import { createCard } from '@/utils/mockDataHelpers';
+import { useRepository } from '@/composables/useRepository';
 import { saveAsset, getAssetUrl } from '@/utils/assetStore';
 import { useToast } from '@/composables/useToast';
 import { generateCardImage } from '@/services/CardGeneratorService';
@@ -15,6 +15,7 @@ interface Props {
 
 const props = defineProps<Props>();
 const { addToast } = useToast();
+const { cards: cardsRepo } = useRepository();
 
 const DRAFT_KEY = 'card_form_draft';
 const STORAGE_KEY_API_KEY = 'campusclub_gemini_api_key';
@@ -184,7 +185,8 @@ const handleFinalSubmit = async () => {
   isSubmitting.value = true;
 
   try {
-    await createCard({
+    await cardsRepo.save({
+      id: `card-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       studentId: props.studentId,
       date: formData.value.date,
       title: formData.value.title.trim(),

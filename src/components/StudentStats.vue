@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import type { Student } from '@/types/student';
-import type { Rarity } from '@/types/card';
-import { getCardsByStudentId } from '@/utils/mockDataHelpers';
+import type { CardData, Rarity } from '@/types/card';
+import { useRepository } from '@/composables/useRepository';
 import { getCardStatistics } from '@/utils/cardFilters';
 import { getTypingStats, getMinecraftStats } from '@/utils/studentStats';
 import { getRarityDisplayName } from '@/utils/rarity';
@@ -12,10 +12,20 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { cards: cardsRepo } = useRepository();
+
+// カードデータ（非同期取得）
+const cardsData = ref<CardData[]>([]);
+
+const loadCards = async () => {
+  cardsData.value = await cardsRepo.getByStudentId(props.student.id);
+};
+
+onMounted(loadCards);
+watch(() => props.student.id, loadCards);
 
 // カード統計
-const cards = computed(() => getCardsByStudentId(props.student.id));
-const cardStats = computed(() => getCardStatistics(cards.value));
+const cardStats = computed(() => getCardStatistics(cardsData.value));
 
 // タイピング統計
 const typingStats = computed(() => getTypingStats(props.student.typingHistory));

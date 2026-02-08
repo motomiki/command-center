@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { addStudent } from '@/utils/mockDataHelpers';
+import { useRepository } from '@/composables/useRepository';
 import AiAvatarGenerator from '../AiAvatarGenerator.vue';
 import { useToast } from '@/composables/useToast';
+import type { Student } from '@/types/student';
 
 defineProps<{
   show: boolean;
@@ -14,6 +15,7 @@ const emit = defineEmits<{
 }>();
 
 const { addToast } = useToast();
+const { students } = useRepository();
 
 const name = ref('');
 const avatarUrl = ref('');
@@ -27,10 +29,14 @@ const handleSave = async () => {
 
   isSaving.value = true;
   try {
-    await addStudent({
+    const newStudent: Student = {
+      id: `student-${Date.now()}`,
       name: name.value,
       avatarUrl: avatarUrl.value || undefined,
-    });
+      typingHistory: [],
+      projects: [],
+    };
+    await students.save(newStudent);
     addToast('生徒を追加しました', undefined, 'success');
     emit('saved');
     handleClose();
