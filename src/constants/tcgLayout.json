@@ -1,0 +1,26 @@
+{
+  "cardWidth": 600,
+  "cardHeight": 840,
+  "artWindow": {
+    "offsetX": 40,
+    "offsetY": 70,
+    "width": 520,
+    "height": 680
+  },
+  "title": {
+    "x": 190,
+    "y": 635,
+    "fontSize": 36
+  },
+  "desc": {
+    "x": 108,
+    "y": 718,
+    "fontSize": 22,
+    "maxWidth": 400
+  },
+  "meta": {
+    "rightPx": 60,
+    "bottomPx": 20,
+    "fontSize": 14
+  }
+}

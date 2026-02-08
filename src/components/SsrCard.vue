@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import { ref, computed, watch } from 'vue';
   import type { Rarity, CardData } from '@/types/card';
-  import { getRarityBadgeName } from '@/utils/rarity';
+  import { getRarityBadgeName, getRarityDisplayName } from '@/utils/rarity';
   import { getAssetUrl } from '@/utils/assetStore';
   
   // Propsの定義: CardDataを直接受け取るか、個別プロパティを受け取る
@@ -13,6 +13,7 @@
     imageUrl?: string;
     description?: string;
     rarity?: Rarity;
+    date?: string;
   }
   
   const props = withDefaults(defineProps<Props>(), {
@@ -24,6 +25,26 @@
   const rawImageUrl = computed(() => props.card?.imageUrl ?? props.imageUrl ?? '');
   const cardDescription = computed(() => props.card?.description ?? props.description);
   const cardRarity = computed(() => props.card?.rarity ?? props.rarity ?? 'UR');
+  const cardDate = computed(() => props.card?.date ?? props.date);
+
+  // 日付を「YYYY年M月D日」形式にフォーマット
+  const formattedDate = computed(() => {
+    if (!cardDate.value) return '';
+    const d = new Date(cardDate.value);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('ja-JP', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  });
+
+  // レアリティ表示名＋獲得日を結合したメタテキスト
+  const metaText = computed(() => {
+    const rarityName = getRarityDisplayName(cardRarity.value);
+    if (!formattedDate.value) return rarityName;
+    return `${rarityName}：${formattedDate.value}`;
+  });
 
   // IDB URL Resolution
   const resolvedImageUrl = ref('');
@@ -177,8 +198,10 @@
     return ['UR', 'SR', 'RR', 'R'].includes(cardRarity.value);
   });
   
-  // URカードはカスタム画像フレーム（UR.png）を使用する
-  const isCustomFrame = computed(() => cardRarity.value === 'UR');
+  // RR/SR/UR はカスタム画像フレーム（RR.png, SR.png, UR.png）を使用する
+  const CUSTOM_FRAME_RARITIES = ['RR', 'SR', 'UR'] as const;
+  const isCustomFrame = computed(() => CUSTOM_FRAME_RARITIES.includes(cardRarity.value as typeof CUSTOM_FRAME_RARITIES[number]));
+  const customFrameSrc = computed(() => `/images/frames/${cardRarity.value}.png`);
 
   // 光沢エフェクトの強度（レアリティに応じて調整）
   const shineEffectOpacity = computed(() => {
@@ -213,30 +236,36 @@
         :style="cardStyle"
         style="will-change: transform;"
       >
-      <!-- UR Custom Frame Mode: 画像フレーム（UR.png）を使用 -->
+      <!-- RR/SR/UR Custom Frame Mode: 画像フレーム（RR.png, SR.png, UR.png）を使用 -->
       <template v-if="isCustomFrame">
-        <div class="ur-frame-container absolute inset-0 rounded-lg overflow-hidden">
-          <!-- Art Image (フレームの下に配置) -->
-          <img 
-            :src="cardImageUrl" 
-            :alt="cardTitle" 
-            class="ur-art absolute object-cover"
-            loading="lazy"
-          />
-          <!-- Frame Overlay (UR.png) -->
-          <img
-            src="/images/frames/UR.png"
-            alt=""
-            class="absolute inset-0 w-full h-full object-fill pointer-events-none z-10"
-          />
-          <!-- Title -->
-          <h3 class="ur-title absolute z-20 font-bold font-serif text-white">
-            {{ cardTitle }}
-          </h3>
-          <!-- Description -->
-          <p v-if="cardDescription" class="ur-desc absolute z-20 text-black line-clamp-2">
-            {{ cardDescription }}
-          </p>
+        <div class="ur-content-wrapper absolute inset-0 rounded-lg overflow-hidden">
+          <div class="ur-frame-container absolute inset-0 rounded-lg overflow-hidden">
+            <!-- Art Image (Z=0) -->
+            <img 
+              :src="cardImageUrl" 
+              :alt="cardTitle" 
+              class="ur-art ur-layer-art absolute object-cover"
+              loading="lazy"
+            />
+            <!-- Frame Overlay (Z=20px) -->
+            <img
+              :src="customFrameSrc"
+              alt=""
+              class="ur-layer-frame absolute inset-0 w-full h-full object-fill pointer-events-none z-10"
+            />
+            <!-- Title (Z=30px) -->
+            <h3 class="ur-title ur-layer-text absolute z-20 font-bold text-white">
+              {{ cardTitle }}
+            </h3>
+            <!-- Description (Z=30px) -->
+            <p v-if="cardDescription" class="ur-desc ur-layer-text absolute z-20 text-black line-clamp-2">
+              {{ cardDescription }}
+            </p>
+            <!-- Meta: レアリティ：獲得日 (Z=30px) -->
+            <span class="ur-meta ur-layer-text absolute z-20">
+              {{ metaText }}
+            </span>
+          </div>
         </div>
       </template>
 
@@ -252,8 +281,7 @@
               <img 
                 :src="cardImageUrl" 
                 :alt="cardTitle" 
-                class="w-full h-full object-cover transform scale-110 transition-transform duration-700"
-                :class="{ 'group-hover:scale-125': true }"
+                class="standard-card-art w-full h-full object-cover scale-110 transition-transform duration-700"
                 loading="lazy"
               />
               <div class="absolute inset-0 bg-noise opacity-30 mix-blend-overlay"></div>
@@ -270,6 +298,9 @@
               <p v-if="cardDescription" :class="rarityTextColor" class="line-clamp-2">
                 {{ cardDescription }}
               </p>
+              <span class="mt-auto self-end text-[10px] leading-none opacity-60 text-white/70 tracking-wide pt-1">
+                {{ metaText }}
+              </span>
             </div>
           </div>
         </div>
@@ -286,7 +317,7 @@
         ></div>
         
         <div 
-          v-if="['UR', 'SR'].includes(cardRarity)" 
+          v-if="['UR', 'SR', 'RR'].includes(cardRarity)" 
           class="absolute inset-0 z-50 pointer-events-none sparkle-container"
         >
           <div class="sparkle s1"></div>
@@ -362,37 +393,65 @@
     100% { transform: translateY(-40px) scale(0); opacity: 0; }
   }
   
-  /* タッチデバイス対応: ホバーエフェクトを無効化 */
-  @media (hover: none) and (pointer: coarse) {
-    .group:hover img {
-      transform: scale(1.1) !important;
-    }
-  }
-  
-  /* ホバー可能なデバイスのみにホバーエフェクトを適用 */
+  /* Standard card: ホバーでイラストのみ拡大（テキストは下部で固定） */
   @media (hover: hover) and (pointer: fine) {
-    .group:hover img {
-      transform: scale(1.25) !important;
+    .group:hover .standard-card-art {
+      transform: scale(1.25);
     }
   }
-  
+  @media (hover: none) and (pointer: coarse) {
+    .group:hover .standard-card-art {
+      transform: scale(1.1);
+    }
+  }
+
+  /* UR/SR/RR Custom Frame: コンテナごと拡大してテキストずれを防ぐ + 3D奥行き */
+  .ur-content-wrapper {
+    transform-style: preserve-3d;
+    transition: transform 0.3s ease-out;
+    will-change: transform;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .group:hover .ur-content-wrapper {
+      transform: scale(1.25);
+    }
+  }
+  @media (hover: none) and (pointer: coarse) {
+    .group:hover .ur-content-wrapper {
+      transform: scale(1.1);
+    }
+  }
+  .ur-layer-art {
+    transform: translateZ(0);
+  }
+  .ur-layer-frame {
+    transform: translateZ(20px);
+  }
+  .ur-layer-text {
+    transform: translateZ(30px);
+  }
+
   /* アクセシビリティ: アニメーションを好まないユーザー向け */
   @media (prefers-reduced-motion: reduce) {
     .shine-effect {
       animation: none;
     }
-    
+
     .animate-pulse-slow {
       animation: none;
     }
-    
+
     .sparkle {
       animation: none;
       opacity: 0;
     }
-    
-    .group:hover img {
-      transform: scale(1.1) !important;
+
+    .group:hover .ur-content-wrapper {
+      transform: scale(1.1);
+    }
+
+    .group:hover .standard-card-art {
+      transform: scale(1.1);
     }
   }
   
@@ -403,9 +462,9 @@
 
 /* =============================================
    UR Custom Frame Mode
-   Python config.py の座標を CSS 百分率に変換:
+   image_service.py の座標を CSS 百分率に変換:
      Canvas: 600×840, Art: 520×680 @ (40, 70)
-     Title: (140, 652), Desc: (135, 735)
+     Title: (190, 635), Desc: (108, 718)
    ============================================= */
 
 .ur-frame-container {
@@ -421,23 +480,39 @@
   height: 80.952%; /* 680 / 840 */
 }
 
-/* Title: position (140, 652) on 600×840 canvas, font-size 36px */
+/* Title: position (190, 635) on 600×840 canvas, font-size 36px */
 .ur-title {
-  top: 77.619%;    /* 652 / 840 */
-  left: 23.333%;   /* 140 / 600 */
+  top: 75.595%;    /* 635 / 840 */
+  left: 31.667%;   /* 190 / 600 */
   right: 6.667%;   /* 右端マージン: 40 / 600 */
   font-size: 6cqi; /* 36 / 600 × 100 */
   line-height: 1.2;
+  text-align: left; /* 親の text-center 継承を上書き（Python 側と同じ左寄せ） */
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
-/* Description: position (135, 735) on 600×840 canvas, font-size 22px */
+/* Description: position (108, 718), config.py DESC_MAX_WIDTH=400 に合わせた幅（右マージン 92px） */
 .ur-desc {
-  top: 87.5%;         /* 735 / 840 */
-  left: 22.5%;        /* 135 / 600 */
-  right: 6.667%;      /* 右端マージン: 40 / 600 */
+  top: 85.476%;       /* 718 / 840 */
+  left: 18%;          /* 108 / 600 */
+  right: 15.333%;     /* 92 / 600 … DESC_MAX_WIDTH=400 と同期 */
   font-size: 3.667cqi; /* 22 / 600 × 100 */
   line-height: 1.3;
+  text-align: left; /* 親の text-center 継承を上書き（Python 側と同じ左寄せ） */
+}
+
+/* Meta (レアリティ：獲得日): 説明枠の右下に配置 */
+.ur-meta {
+  /* bottom: 2.4%;          下端から約 20px / 840 */
+  /* right: 10%;            右端マージン: 60 / 600 */
+  bottom: 3.5%;          /* 下端から約 20px / 840 */
+  right: 18%;            /* 右端マージン: 60 / 600 */
+  font-size: 2.5cqi;   /* 14 / 600 × 100 — 説明より小さく */
+  line-height: 1;
+  text-align: right;
+  color: rgba(0, 0, 0, 0.55);
+  white-space: nowrap;
+  pointer-events: none;
 }
 </style>
 

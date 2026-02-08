@@ -12,8 +12,8 @@
 
 | 定数 | 行付近 | 意味 | 例（ピクセル） |
 |------|--------|------|----------------|
-| `TITLE_POSITION` | 33–34 | タイトル（カード名）の左上座標 (x, y) | `(140, 652)` |
-| `DESC_POSITION` | 34–35 | 説明文の左上座標 (x, y) | `(135, 735)` |
+| `TITLE_POSITION` | 33–34 | タイトル（カード名）の左上座標 (x, y) | `(190, 635)` |
+| `DESC_POSITION` | 34–35 | 説明文の左上座標 (x, y) | `(130, 718)` |
 
 - カード全体は **600 × 840 px**。x は 0〜600、y は 0〜840 の範囲で指定する。
 - 枠デザイン（UR など）の「タイトルバー」「説明エリア」に合わせて変更する。
@@ -30,7 +30,21 @@
 
 - 背景が明るい場合は黒系、暗い場合は白系にすると読みやすい。
 
-### 1.3 フォントサイズ・折り返し幅・行間
+### 1.3 フロント（SsrCard.vue）との座標同期
+
+**生成画像（Python）とダッシュボード表示（Vue）で同じ枠を使う場合、座標を揃える必要があります。**
+
+| 役割 | ファイル | 内容 |
+|------|----------|------|
+| 生成側 | `scripts/tcg_generator/src/services/image_service.py` | `TITLE_POSITION`, `DESC_POSITION`（33–35 行付近）で PNG 上のテキスト位置をピクセル指定 |
+| 表示側 | `src/components/SsrCard.vue` | RR/SR/UR のカスタムフレーム表示時、`.ur-title` / `.ur-desc` でタイトル・説明文の位置を **CSS 百分率** で指定 |
+
+- キャンバスは **600 × 840 px** のため、`image_service.py` の座標を百分率に変換して SsrCard.vue に反映する。
+  - **top:** `y / 840`（例: 635 → `75.595%`）
+  - **left:** `x / 600`（例: 190 → `31.667%`）
+- **TITLE_POSITION** や **DESC_POSITION** を変更したら、SsrCard.vue の `<style scoped>` 内のコメント「image_service.py の座標を CSS 百分率に変換」付近の `.ur-title` / `.ur-desc` の `top`・`left` およびコメントの数値を同じ座標に合わせて更新すること。そうしないと、生成されたカード画像とアプリ上での表示位置がずれる。
+
+### 1.4 フォントサイズ・折り返し幅・行間
 
 **ファイル:** `src/core/config.py`
 
@@ -44,7 +58,7 @@
 
 - 長いタイトル・説明はここで指定した幅で自動折り返しされる。
 
-### 1.4 フォントファイル
+### 1.5 フォントファイル
 
 **ファイル:** `src/core/config.py`（デフォルト名）、`src/services/image_service.py`（`_get_fonts` で利用）
 
@@ -147,3 +161,4 @@
 | `assets/fonts/` | 日本語フォント（.ttf / .otf） |
 | `assets/frames/` | レアリティ別枠 PNG |
 | `assets/overlays/` | 光沢オーバーレイ（例: `holo.png`） |
+| **プロジェクトルート** `src/components/SsrCard.vue` | ダッシュボード上のカード表示。RR/SR/UR 枠表示時、`image_service.py` の TITLE_POSITION / DESC_POSITION と CSS 百分率を同期すること（1.3 参照）。 |

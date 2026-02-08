@@ -32,8 +32,8 @@ DATA_DIR = _PROJECT_ROOT / "data"
 OUTPUT_DIR = _PROJECT_ROOT / "output"
 
 # --- カスタム枠を有効にするレアリティ（ここに含まれるものだけ frames/{rarity}.png を参照）---
-# 微調整時はまず UR のみ有効にし、他レアはフォールバック枠を使用する。
-CUSTOM_FRAME_RARITIES: frozenset[str] = frozenset({"UR"})
+# RR.png, SR.png, UR.png を配置したレアはカスタム枠を使用。未配置時はフォールバック枠。
+CUSTOM_FRAME_RARITIES: frozenset[str] = frozenset({"RR", "SR", "UR"})
 
 # --- デフォルトファイル名 ---
 DEFAULT_STYLE_REF = "style_ref.png"
@@ -64,7 +64,7 @@ INITIAL_BACKOFF_SEC = 2.0
 TITLE_FONT_SIZE = 36
 DESC_FONT_SIZE = 22
 TITLE_MAX_WIDTH = 520
-DESC_MAX_WIDTH = 520
+DESC_MAX_WIDTH = 400
 LINE_SPACING = 6
 
 

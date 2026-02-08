@@ -31,8 +31,8 @@ from src.core.models import CardData, Rarity
 from src.utils.text_layout import draw_text_wrapped_ja, get_line_height, wrap_text_ja
 
 # テキスト描画位置（枠レイアウトに合わせて調整）
-TITLE_POSITION = (190, 628)
-DESC_POSITION = (130, 718)
+TITLE_POSITION = (190, 635)
+DESC_POSITION = (108, 718)
 TEXT_FILL = (255, 255, 255)
 # 説明文のみ黒系（DESC_POSITION 付近の背景とのコントラスト用）
 DESC_TEXT_FILL = (0, 0, 0)
@@ -101,7 +101,7 @@ def _create_fallback_frame(card: CardData) -> Image.Image:
     """枠画像がない場合の透明枠＋角だけ色付きの簡易枠。"""
     frame = Image.new("RGBA", (CARD_WIDTH, CARD_HEIGHT), (0, 0, 0, 0))
     draw = ImageDraw.Draw(frame)
-    border_color = (200, 180, 120, 255) if card.rarity in (Rarity.SR, Rarity.UR) else (120, 120, 120, 200)
+    border_color = (200, 180, 120, 255) if card.rarity in (Rarity.RR, Rarity.SR, Rarity.UR) else (120, 120, 120, 200)
     draw.rectangle([0, 0, CARD_WIDTH - 1, CARD_HEIGHT - 1], outline=border_color, width=8)
     return frame
 
@@ -139,7 +139,7 @@ def composite_card(
         frames_dir: レアリティ別枠のディレクトリ。None なら config の FRAMES_DIR
         output_path: 保存先。指定時はここに PNG 保存
         use_placeholder_art: art_image が None のときプレースホルダーを使うか
-        add_holo_overlay: SR/UR に光沢オーバーレイを乗せるか。None ならレアリティで自動
+        add_holo_overlay: RR/SR/UR に光沢オーバーレイを乗せるか。None ならレアリティで自動
 
     Returns:
         合成済みの PIL Image (RGBA)
@@ -164,9 +164,9 @@ def composite_card(
     canvas.paste(art, (ART_WINDOW_OFFSET_X, ART_WINDOW_OFFSET_Y))
     canvas = Image.alpha_composite(canvas, frame)
 
-    # オーバーレイ（SR/UR）
+    # オーバーレイ（RR/SR/UR）
     if add_holo_overlay is None:
-        add_holo_overlay = card.rarity in (Rarity.SR, Rarity.UR)
+        add_holo_overlay = card.rarity in (Rarity.RR, Rarity.SR, Rarity.UR)
     if add_holo_overlay:
         holo_path = OVERLAYS_DIR / "holo.png"
         if holo_path.exists():
