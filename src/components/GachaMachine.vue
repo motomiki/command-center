@@ -190,7 +190,7 @@ const getConfettiSettings = (rarity: Rarity): ConfettiSettings => {
       slowFallCount: 50,
     },
     U: {
-      colors: ['#94A3B8', '#CBD5E1', '#E2E8F0', '#F1F5F9', '#A8E6CF'],
+      colors: ['#facc15', '#eab308', '#fef08a', '#fde047', '#fef9c3'],
       particleCount: 80,
       spread: 55,
       startVelocity: 24,
@@ -201,7 +201,7 @@ const getConfettiSettings = (rarity: Rarity): ConfettiSettings => {
       slowFallCount: 35,
     },
     C: {
-      colors: ['#A8E6CF', '#DCEDC1', '#FFD3B5', '#FFAAA5', '#FF8B94'],
+      colors: ['#94A3B8', '#CBD5E1', '#E2E8F0', '#F1F5F9', '#9CA3AF'],
       particleCount: 55,
       spread: 50,
       startVelocity: 22,
@@ -313,8 +313,8 @@ const getRarityGlowStyle = (rarity: Rarity) => {
     SR: '0 0 50px 20px rgba(255, 140, 0, 0.8), 0 0 80px 35px rgba(255, 140, 0, 0.4)',
     RR: '0 0 40px 15px rgba(0, 102, 255, 0.7), 0 0 60px 30px rgba(0, 102, 255, 0.3)',
     R: '0 0 35px 12px rgba(0, 170, 0, 0.6), 0 0 50px 25px rgba(0, 170, 0, 0.3)',
-    U: '0 0 25px 10px rgba(128, 128, 128, 0.5), 0 0 40px 20px rgba(128, 128, 128, 0.2)',
-    C: '0 0 20px 8px rgba(160, 160, 160, 0.4), 0 0 30px 15px rgba(160, 160, 160, 0.2)',
+    U: '0 0 25px 10px rgba(234, 179, 8, 0.5), 0 0 40px 20px rgba(234, 179, 8, 0.2)',
+    C: '0 0 20px 8px rgba(128, 128, 128, 0.4), 0 0 30px 15px rgba(128, 128, 128, 0.2)',
   };
   return glows[rarity];
 };
@@ -1000,11 +1000,11 @@ onUnmounted(() => {
 }
 
 [data-rarity="U"] .card-preview-glow {
-  background: radial-gradient(circle at center, rgba(128, 128, 128, 0.2) 0%, transparent 70%);
+  background: radial-gradient(circle at center, rgba(234, 179, 8, 0.35) 0%, transparent 70%);
 }
 
 [data-rarity="C"] .card-preview-glow {
-  background: radial-gradient(circle at center, rgba(160, 160, 160, 0.15) 0%, transparent 70%);
+  background: radial-gradient(circle at center, rgba(128, 128, 128, 0.2) 0%, transparent 70%);
 }
 
 /* アクセシビリティ: アニメーションを好まないユーザー向け */

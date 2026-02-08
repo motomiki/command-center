@@ -345,6 +345,14 @@ const maxScore = computed(() => {
   background: linear-gradient(90deg, #00AA00 0%, #00C800 100%);
 }
 
+.rarity-item[data-rarity="U"] .rarity-bar {
+  background: linear-gradient(90deg, #eab308 0%, #facc15 100%);
+}
+
+.rarity-item[data-rarity="C"] .rarity-bar {
+  background: linear-gradient(90deg, #6b7280 0%, #9ca3af 100%);
+}
+
 .rarity-count {
   min-width: 40px;
   text-align: right;

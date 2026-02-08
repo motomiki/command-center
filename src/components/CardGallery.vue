@@ -424,13 +424,13 @@ onUnmounted(() => {
 }
 
 .rarity-stat-badge[data-rarity="U"] {
-  background: rgba(128, 128, 128, 0.1);
-  border-color: rgba(128, 128, 128, 0.2);
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.2) 0%, rgba(250, 204, 21, 0.2) 100%);
+  border-color: rgba(234, 179, 8, 0.3);
 }
 
 .rarity-stat-badge[data-rarity="C"] {
-  background: rgba(160, 160, 160, 0.1);
-  border-color: rgba(160, 160, 160, 0.2);
+  background: rgba(128, 128, 128, 0.1);
+  border-color: rgba(128, 128, 128, 0.2);
 }
 
 .rarity-stat-label {
@@ -579,6 +579,16 @@ onUnmounted(() => {
 .rarity-filter-btn[data-rarity="R"].active {
   background: linear-gradient(135deg, #00AA00 0%, #00C800 100%);
   border-color: #00AA00;
+}
+
+.rarity-filter-btn[data-rarity="U"].active {
+  background: linear-gradient(135deg, #eab308 0%, #facc15 100%);
+  border-color: #eab308;
+}
+
+.rarity-filter-btn[data-rarity="C"].active {
+  background: linear-gradient(135deg, #6b7280 0%, #9ca3af 100%);
+  border-color: #6b7280;
 }
 
 .toggle-buttons {

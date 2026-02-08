@@ -20,6 +20,7 @@ export interface CardData {
   imageUrl?: string; // AI生成画像のURL
   rarity?: Rarity;
   isOpened?: boolean; // ガチャ開封済みかどうか
+  issueNumber?: number; // 教師が発行したカードの通し番号（全生徒横断）
 
   // 紐づく成果物データ（後方互換性のため残す）
   typingStats?: {

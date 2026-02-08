@@ -8,7 +8,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import Union
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 from src.core.config import (
     ART_WINDOW_HEIGHT,
@@ -20,6 +20,10 @@ from src.core.config import (
     CUSTOM_FRAME_RARITIES,
     DESC_FONT_SIZE,
     DESC_MAX_WIDTH,
+    FALLBACK_ART_HEIGHT,
+    FALLBACK_ART_OFFSET_X,
+    FALLBACK_ART_OFFSET_Y,
+    FALLBACK_ART_WIDTH,
     get_font_path,
     get_frame_path,
     OVERLAYS_DIR,
@@ -101,7 +105,14 @@ def _create_fallback_frame(card: CardData) -> Image.Image:
     """枠画像がない場合の透明枠＋角だけ色付きの簡易枠。"""
     frame = Image.new("RGBA", (CARD_WIDTH, CARD_HEIGHT), (0, 0, 0, 0))
     draw = ImageDraw.Draw(frame)
-    border_color = (200, 180, 120, 255) if card.rarity in (Rarity.RR, Rarity.SR, Rarity.UR) else (120, 120, 120, 200)
+    if card.rarity in (Rarity.RR, Rarity.SR, Rarity.UR):
+        border_color = (200, 180, 120, 255)
+    elif card.rarity == Rarity.U:
+        # アンコモン: サンプル同様の黄色系 (#eab308)
+        border_color = (234, 179, 8, 255)
+    else:
+        # コモン・R など: グレー（旧アンコモン色をコモンに反映）
+        border_color = (120, 120, 120, 200)
     draw.rectangle([0, 0, CARD_WIDTH - 1, CARD_HEIGHT - 1], outline=border_color, width=8)
     return frame
 
@@ -151,17 +162,29 @@ def composite_card(
         frame = _get_frame_image(card, frames_dir)
         canvas_size = (CARD_WIDTH, CARD_HEIGHT)
 
+    # レアリティに応じてアート描画領域を決定
+    # カスタム枠（RR/SR/UR）: 装飾枠の内側ウィンドウに配置
+    # 汎用枠（R/U/C）: カード全面にイラストを配置（薄い枠線は上に重ねる）
+    is_custom = card.rarity.value in CUSTOM_FRAME_RARITIES
+    if is_custom:
+        art_w, art_h = ART_WINDOW_WIDTH, ART_WINDOW_HEIGHT
+        art_ox, art_oy = ART_WINDOW_OFFSET_X, ART_WINDOW_OFFSET_Y
+    else:
+        art_w, art_h = FALLBACK_ART_WIDTH, FALLBACK_ART_HEIGHT
+        art_ox, art_oy = FALLBACK_ART_OFFSET_X, FALLBACK_ART_OFFSET_Y
+
     if art_image is not None:
         art = _load_image(art_image)
     elif use_placeholder_art:
-        art = _create_placeholder_art(ART_WINDOW_WIDTH, ART_WINDOW_HEIGHT)
+        art = _create_placeholder_art(art_w, art_h)
     else:
-        art = _create_placeholder_art(ART_WINDOW_WIDTH, ART_WINDOW_HEIGHT)
+        art = _create_placeholder_art(art_w, art_h)
 
-    art = art.resize((ART_WINDOW_WIDTH, ART_WINDOW_HEIGHT), resample=Image.Resampling.LANCZOS)
+    # ImageOps.fit: アスペクト比を維持しつつ中央トリミングで指定サイズにぴったり合わせる
+    art = ImageOps.fit(art, (art_w, art_h), method=Image.Resampling.LANCZOS)
 
     canvas = Image.new("RGBA", canvas_size, (0, 0, 0, 0))
-    canvas.paste(art, (ART_WINDOW_OFFSET_X, ART_WINDOW_OFFSET_Y))
+    canvas.paste(art, (art_ox, art_oy))
     canvas = Image.alpha_composite(canvas, frame)
 
     # オーバーレイ（RR/SR/UR）

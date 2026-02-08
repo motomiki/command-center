@@ -45,10 +45,18 @@ DEFAULT_HOLO_OVERLAY = "holo.png"
 # --- カード画像サイズ（ピクセル）---
 CARD_WIDTH = 600
 CARD_HEIGHT = 840
+
+# カスタム枠（RR/SR/UR）用: 太い装飾枠の内側にイラストを配置
 ART_WINDOW_WIDTH = 520
 ART_WINDOW_HEIGHT = 680
 ART_WINDOW_OFFSET_X = 40
 ART_WINDOW_OFFSET_Y = 70
+
+# 汎用枠（R/U/C）用: 薄い枠線(8px)の背後にイラストを全面配置
+FALLBACK_ART_WIDTH = CARD_WIDTH      # 600
+FALLBACK_ART_HEIGHT = CARD_HEIGHT    # 840
+FALLBACK_ART_OFFSET_X = 0
+FALLBACK_ART_OFFSET_Y = 0
 
 # --- API ---
 # 画像生成対応モデル（Nano Banana）。旧 gemini-2.0-flash-exp-image-generation は非対応のため変更

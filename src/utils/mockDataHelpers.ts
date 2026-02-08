@@ -6,14 +6,22 @@ import { mockStudents as initialStudents, mockCards as initialCards } from '@/da
 
 const STORAGE_KEY_STUDENTS = 'campusclub_students_v1';
 const STORAGE_KEY_CARDS = 'campusclub_cards_v1';
+const STORAGE_KEY_GLOBAL_SETTINGS = 'campusclub_global_settings_v1';
 
 // Legacy localStorage keys (for one-time migration)
 const LEGACY_KEY_STUDENTS = 'campusclub_students_v1';
 const LEGACY_KEY_CARDS = 'campusclub_cards_v1';
 
+/** グローバル設定の型定義 */
+interface GlobalSettings {
+  /** 教師が発行したカードの通し番号カウンター（全生徒横断） */
+  totalCardsIssued: number;
+}
+
 // Internal State (Reactive)
 const students = reactive<Student[]>([]);
 const cards = reactive<CardData[]>([]);
+const globalSettings = reactive<GlobalSettings>({ totalCardsIssued: 0 });
 
 let initPromise: Promise<void> | null = null;
 
@@ -29,6 +37,13 @@ const saveStudents = async (): Promise<void> => {
  */
 const saveCards = async (): Promise<void> => {
   await set(STORAGE_KEY_CARDS, JSON.parse(JSON.stringify(cards)));
+};
+
+/**
+ * Save global settings to IndexedDB.
+ */
+const saveGlobalSettings = async (): Promise<void> => {
+  await set(STORAGE_KEY_GLOBAL_SETTINGS, JSON.parse(JSON.stringify(globalSettings)));
 };
 
 /**
@@ -75,10 +90,25 @@ const initData = async (): Promise<void> => {
 
     students.splice(0, students.length, ...finalStudents);
     cards.splice(0, cards.length, ...finalCards);
+
+    // --- グローバル設定（通し番号カウンター）の読み込み ---
+    const savedSettings = await get<GlobalSettings>(STORAGE_KEY_GLOBAL_SETTINGS);
+    if (savedSettings != null && typeof savedSettings.totalCardsIssued === 'number') {
+      globalSettings.totalCardsIssued = savedSettings.totalCardsIssued;
+    } else {
+      // 初回起動: 既存カードの issueNumber の最大値からカウンターを導出する。
+      // issueNumber が付与されていないカードしかない場合は、カードの総数をカウンターとする。
+      const maxExisting = finalCards.reduce((max, c) => {
+        return (c.issueNumber != null && c.issueNumber > max) ? c.issueNumber : max;
+      }, 0);
+      globalSettings.totalCardsIssued = maxExisting > 0 ? maxExisting : finalCards.length;
+      await saveGlobalSettings();
+    }
   } catch (e) {
     console.error('Failed to load data from IndexedDB', e);
     students.splice(0, students.length, ...JSON.parse(JSON.stringify(initialStudents)));
     cards.splice(0, cards.length, ...JSON.parse(JSON.stringify(initialCards)));
+    globalSettings.totalCardsIssued = 0;
   }
 };
 
@@ -211,19 +241,30 @@ export async function addMinecraftProject(
 }
 
 /**
- * カードを生成
+ * カードを生成（通し番号を自動付与）
  */
 export async function createCard(cardData: Omit<CardData, 'id'>): Promise<CardData> {
+  // 通し番号をインクリメントして付与
+  const nextIssueNumber = globalSettings.totalCardsIssued + 1;
+
   const newCard: CardData = {
     ...cardData,
     id: `card-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    issueNumber: nextIssueNumber,
   };
   cards.push(newCard);
+
+  const previousCount = globalSettings.totalCardsIssued;
+  globalSettings.totalCardsIssued = nextIssueNumber;
+
   try {
     await saveCards();
+    await saveGlobalSettings();
     return newCard;
   } catch (e) {
+    // ロールバック
     cards.pop();
+    globalSettings.totalCardsIssued = previousCount;
     throw e;
   }
 }
@@ -286,4 +327,11 @@ export async function openCard(cardId: string): Promise<void> {
       throw e;
     }
   }
+}
+
+/**
+ * 教師が発行したカードの通し番号の現在値を取得
+ */
+export function getTotalCardsIssued(): number {
+  return globalSettings.totalCardsIssued;
 }
