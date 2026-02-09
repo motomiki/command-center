@@ -21,6 +21,7 @@ from src.core.config import (
     MAX_RETRIES,
 )
 from src.core.models import CardData
+from src.utils.image_utils import trim_uniform_borders
 
 logger = logging.getLogger(__name__)
 
@@ -45,15 +46,17 @@ def _load_style_image(style_ref_path: Path) -> Image.Image:
 
 
 def _build_prompt(card: CardData, style_description: str) -> str:
-    """AI 用プロンプトを組み立てる。四隅を四角に保つため Full Bleed・枠禁止を明示する。"""
+    """AI 用プロンプトを組み立てる。先頭で枠禁止を明示し、末尾で肯定・否定を繰り返す。"""
     return (
-        f"Create a single illustration to be used as card artwork (the image only, no frame). "
+        "Card artwork only: no frame, no border of any kind (no white border, no black border). "
+        "The illustration must extend to all four edges with zero margin. "
         f"Style: {style_description}. "
         f"Subject/prompt: {card.prompt}. "
-        f"Do not include any text, logos, or UI elements in the image. "
-        f"Full bleed image: the illustration must extend to all edges with no margins. "
-        f"No border, no frame, no rounded corners. Square corners and sharp edges only. "
-        f"Fill the entire canvas edge to edge."
+        "Do not include any text, logos, or UI elements in the image. "
+        "Full bleed image: the illustration must extend to all edges with no margins. "
+        "No border, no frame, no rounded corners. Square corners and sharp edges only. "
+        "Fill the entire canvas edge to edge. "
+        "Edge-to-edge only. Do not add any white or black frame or margin around the image."
     ).strip()
 
 
@@ -141,6 +144,7 @@ def generate_card_art(
                     if output_path:
                         output_path.parent.mkdir(parents=True, exist_ok=True)
                         img.save(output_path)
+                    img = trim_uniform_borders(img)
                     return img
 
             last_error = RuntimeError("Response contained no image part.")

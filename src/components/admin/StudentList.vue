@@ -105,8 +105,8 @@ const showAddModal = ref(false);
       <div
         v-for="student in filteredStudents"
         :key="student.id"
-        @click="handleStudentClick(student.id)"
-        @keydown="(e) => handleKeyDown(e, student.id)"
+        @click="handleStudentClick(student.loginId ?? student.id)"
+        @keydown="(e) => handleKeyDown(e, student.loginId ?? student.id)"
         class="student-card"
         role="button"
         tabindex="0"

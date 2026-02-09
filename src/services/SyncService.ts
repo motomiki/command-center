@@ -63,11 +63,12 @@ function mapProfileToStudent(
   // typing_history カラム（jsonb）をパース
   const rawHistory = profile.typing_history;
   const typingHistory = Array.isArray(rawHistory) && rawHistory.length > 0
-    ? (rawHistory as Student['typingHistory'])
+    ? (rawHistory as unknown as Student['typingHistory'])
     : existingStudent?.typingHistory ?? [];
 
   return {
     id: profile.id,
+    loginId: profile.login_id ?? undefined,
     name: profile.display_name ?? '名前なし',
     avatarUrl: profile.avatar_url ?? undefined,
     typingHistory,
@@ -177,6 +178,7 @@ async function resolveAssetUrl(
   onDownloaded: () => void,
 ): Promise<string | undefined> {
   if (!storagePath) return undefined;
+  if (storagePath.startsWith('idb://')) return undefined;
 
   try {
     const cacheKey = await downloadAndCacheAsset(storagePath);

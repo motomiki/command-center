@@ -98,63 +98,69 @@ INSERT INTO auth.users (
 -- 2. プロフィール
 -- ============================================================
 
--- 教師プロフィール
-INSERT INTO profiles (id, role, display_name, typing_history)
+-- 教師プロフィール（login_id は先生では NULL）
+INSERT INTO profiles (id, role, display_name, typing_history, login_id)
 VALUES (
   '00000000-0000-4000-a000-000000000099',
   'teacher',
   '先生',
-  '[]'::jsonb
+  '[]'::jsonb,
+  NULL
 ) ON CONFLICT (id) DO NOTHING;
 
 -- student-1: 田中 太郎
-INSERT INTO profiles (id, role, display_name, avatar_url, typing_history)
+INSERT INTO profiles (id, role, display_name, avatar_url, typing_history, login_id)
 VALUES (
   '00000000-0000-4000-a000-000000000001',
   'student',
   '田中 太郎',
   NULL,
-  '[{"date":"2024-01-15","score":850,"wpm":45,"diffFromLast":5},{"date":"2024-01-18","score":900,"wpm":47,"diffFromLast":2},{"date":"2024-01-22","score":950,"wpm":50,"diffFromLast":3},{"date":"2024-01-25","score":1100,"wpm":55,"diffFromLast":5},{"date":"2024-01-28","score":1200,"wpm":58,"diffFromLast":3},{"date":"2024-02-01","score":1250,"wpm":60,"diffFromLast":2},{"date":"2024-02-05","score":1300,"wpm":62,"diffFromLast":2}]'::jsonb
+  '[{"date":"2024-01-15","score":850,"wpm":45,"diffFromLast":5},{"date":"2024-01-18","score":900,"wpm":47,"diffFromLast":2},{"date":"2024-01-22","score":950,"wpm":50,"diffFromLast":3},{"date":"2024-01-25","score":1100,"wpm":55,"diffFromLast":5},{"date":"2024-01-28","score":1200,"wpm":58,"diffFromLast":3},{"date":"2024-02-01","score":1250,"wpm":60,"diffFromLast":2},{"date":"2024-02-05","score":1300,"wpm":62,"diffFromLast":2}]'::jsonb,
+  'student-1'
 ) ON CONFLICT (id) DO NOTHING;
 
 -- student-2: 佐藤 花子
-INSERT INTO profiles (id, role, display_name, avatar_url, typing_history)
+INSERT INTO profiles (id, role, display_name, avatar_url, typing_history, login_id)
 VALUES (
   '00000000-0000-4000-a000-000000000002',
   'student',
   '佐藤 花子',
   NULL,
-  '[{"date":"2024-01-16","score":720,"wpm":38,"diffFromLast":2},{"date":"2024-01-19","score":750,"wpm":40,"diffFromLast":2},{"date":"2024-01-23","score":800,"wpm":42,"diffFromLast":2},{"date":"2024-01-26","score":850,"wpm":44,"diffFromLast":2},{"date":"2024-01-29","score":900,"wpm":45,"diffFromLast":1},{"date":"2024-02-02","score":950,"wpm":47,"diffFromLast":2},{"date":"2024-02-06","score":980,"wpm":48,"diffFromLast":1}]'::jsonb
+  '[{"date":"2024-01-16","score":720,"wpm":38,"diffFromLast":2},{"date":"2024-01-19","score":750,"wpm":40,"diffFromLast":2},{"date":"2024-01-23","score":800,"wpm":42,"diffFromLast":2},{"date":"2024-01-26","score":850,"wpm":44,"diffFromLast":2},{"date":"2024-01-29","score":900,"wpm":45,"diffFromLast":1},{"date":"2024-02-02","score":950,"wpm":47,"diffFromLast":2},{"date":"2024-02-06","score":980,"wpm":48,"diffFromLast":1}]'::jsonb,
+  'student-2'
 ) ON CONFLICT (id) DO NOTHING;
 
 -- student-3: 鈴木 一郎
-INSERT INTO profiles (id, role, display_name, avatar_url, typing_history)
+INSERT INTO profiles (id, role, display_name, avatar_url, typing_history, login_id)
 VALUES (
   '00000000-0000-4000-a000-000000000003',
   'student',
   '鈴木 一郎',
   NULL,
-  '[{"date":"2024-01-17","score":650,"wpm":35,"diffFromLast":0},{"date":"2024-01-20","score":680,"wpm":36,"diffFromLast":1},{"date":"2024-01-24","score":700,"wpm":37,"diffFromLast":1},{"date":"2024-01-27","score":720,"wpm":38,"diffFromLast":1},{"date":"2024-01-30","score":750,"wpm":39,"diffFromLast":1},{"date":"2024-02-03","score":780,"wpm":40,"diffFromLast":1},{"date":"2024-02-07","score":800,"wpm":41,"diffFromLast":1}]'::jsonb
+  '[{"date":"2024-01-17","score":650,"wpm":35,"diffFromLast":0},{"date":"2024-01-20","score":680,"wpm":36,"diffFromLast":1},{"date":"2024-01-24","score":700,"wpm":37,"diffFromLast":1},{"date":"2024-01-27","score":720,"wpm":38,"diffFromLast":1},{"date":"2024-01-30","score":750,"wpm":39,"diffFromLast":1},{"date":"2024-02-03","score":780,"wpm":40,"diffFromLast":1},{"date":"2024-02-07","score":800,"wpm":41,"diffFromLast":1}]'::jsonb,
+  'student-3'
 ) ON CONFLICT (id) DO NOTHING;
 
 -- student-4: 高橋 美咲
-INSERT INTO profiles (id, role, display_name, avatar_url, typing_history)
+INSERT INTO profiles (id, role, display_name, avatar_url, typing_history, login_id)
 VALUES (
   '00000000-0000-4000-a000-000000000004',
   'student',
   '高橋 美咲',
   NULL,
-  '[{"date":"2024-01-18","score":950,"wpm":50,"diffFromLast":5},{"date":"2024-01-21","score":1000,"wpm":52,"diffFromLast":2},{"date":"2024-01-24","score":1050,"wpm":54,"diffFromLast":2},{"date":"2024-01-27","score":1150,"wpm":56,"diffFromLast":2},{"date":"2024-01-31","score":1200,"wpm":58,"diffFromLast":2},{"date":"2024-02-04","score":1250,"wpm":60,"diffFromLast":2},{"date":"2024-02-08","score":1300,"wpm":62,"diffFromLast":2}]'::jsonb
+  '[{"date":"2024-01-18","score":950,"wpm":50,"diffFromLast":5},{"date":"2024-01-21","score":1000,"wpm":52,"diffFromLast":2},{"date":"2024-01-24","score":1050,"wpm":54,"diffFromLast":2},{"date":"2024-01-27","score":1150,"wpm":56,"diffFromLast":2},{"date":"2024-01-31","score":1200,"wpm":58,"diffFromLast":2},{"date":"2024-02-04","score":1250,"wpm":60,"diffFromLast":2},{"date":"2024-02-08","score":1300,"wpm":62,"diffFromLast":2}]'::jsonb,
+  'student-4'
 ) ON CONFLICT (id) DO NOTHING;
 
 -- student-5: ゆうき
-INSERT INTO profiles (id, role, display_name, avatar_url, typing_history)
+INSERT INTO profiles (id, role, display_name, avatar_url, typing_history, login_id)
 VALUES (
   '00000000-0000-4000-a000-000000000005',
   'student',
   'ゆうき',
   NULL,
-  '[{"date":"2024-01-19","score":580,"wpm":32,"diffFromLast":-2},{"date":"2024-01-22","score":600,"wpm":33,"diffFromLast":1},{"date":"2024-01-25","score":620,"wpm":34,"diffFromLast":1},{"date":"2024-01-28","score":650,"wpm":35,"diffFromLast":1},{"date":"2024-02-01","score":680,"wpm":36,"diffFromLast":1},{"date":"2024-02-05","score":700,"wpm":37,"diffFromLast":1},{"date":"2024-02-09","score":720,"wpm":38,"diffFromLast":1}]'::jsonb
+  '[{"date":"2024-01-19","score":580,"wpm":32,"diffFromLast":-2},{"date":"2024-01-22","score":600,"wpm":33,"diffFromLast":1},{"date":"2024-01-25","score":620,"wpm":34,"diffFromLast":1},{"date":"2024-01-28","score":650,"wpm":35,"diffFromLast":1},{"date":"2024-02-01","score":680,"wpm":36,"diffFromLast":1},{"date":"2024-02-05","score":700,"wpm":37,"diffFromLast":1},{"date":"2024-02-09","score":720,"wpm":38,"diffFromLast":1}]'::jsonb,
+  'student-5'
 ) ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================

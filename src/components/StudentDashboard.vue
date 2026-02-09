@@ -20,20 +20,30 @@ const { students, cards: cardsRepo, sync, isSyncing } = useRepository();
 // 同期ステータス
 // ---------------------------------------------------------------------------
 const syncMessage = ref('');
+/** ガチャ開封の保存に失敗したときのメッセージ（子ども向け） */
+const gachaOpenError = ref('');
 
 // ---------------------------------------------------------------------------
 // データ取得（非同期）
 // ---------------------------------------------------------------------------
 const student = ref<Student | null>(null);
 const studentCards = ref<CardData[]>([]);
+/** 初回 fetch 完了したか（未取得の場合は「見つかりません」表示に使う） */
+const dataFetched = ref(false);
 
 const fetchData = async () => {
-  const [s, c] = await Promise.all([
-    students.getById(props.studentId),
-    cardsRepo.getByStudentId(props.studentId),
-  ]);
+  dataFetched.value = false;
+  const s = await students.getById(props.studentId);
+  if (!s) {
+    student.value = null;
+    studentCards.value = [];
+    dataFetched.value = true;
+    return;
+  }
   student.value = s;
-  studentCards.value = c;
+  // カード・作品は内部キー（UUID）で取得
+  studentCards.value = await cardsRepo.getByStudentId(s.id);
+  dataFetched.value = true;
 };
 
 /**
@@ -96,11 +106,23 @@ const navBadges = computed(() => ({
 
 // ガチャ結果のハンドラー
 const handleCardOpened = async (card: CardData) => {
-  console.log('カードが開封されました:', card);
-  await cardsRepo.markAsOpened(card.id);
-  // ローカルの状態も更新
-  const target = studentCards.value.find((c) => c.id === card.id);
-  if (target) target.isOpened = true;
+  gachaOpenError.value = '';
+  try {
+    await cardsRepo.markAsOpened(card.id);
+    // ローカルの状態も更新（Supabase に反映されたときのみ）
+    const target = studentCards.value.find((c) => c.id === card.id);
+    if (target) target.isOpened = true;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    gachaOpenError.value =
+      msg.includes('保存できませんでした') || msg.includes('失敗')
+        ? '開封の保存にしっぱいしました。もういちどためしてね。'
+        : msg;
+    // 5秒後にメッセージを自動で消す
+    setTimeout(() => {
+      gachaOpenError.value = '';
+    }, 5000);
+  }
 };
 
 const handleGachaComplete = (card: CardData) => {
@@ -132,12 +154,25 @@ const minecraftCards = computed(() => {
       </div>
     </Transition>
 
+    <!-- ガチャ開封エラー表示 -->
+    <Transition name="sync-fade">
+      <div v-if="gachaOpenError" class="gacha-open-error">
+        <span class="gacha-open-error-text">{{ gachaOpenError }}</span>
+      </div>
+    </Transition>
+
     <!-- メインコンテンツ -->
     <div class="dashboard-content">
       <!-- ローディング表示 -->
-      <div v-if="!student" class="loading-container">
+      <div v-if="!dataFetched" class="loading-container">
         <div class="loading-spinner"></div>
         <p>データを読み込んでいます...</p>
+      </div>
+
+      <!-- 生徒が見つからない場合 -->
+      <div v-else-if="!student" class="loading-container">
+        <p class="text-lg font-medium">このページは見つかりませんでした</p>
+        <p class="mt-2 text-sm opacity-80">ログインし直すか、URLをたしかめてね。</p>
       </div>
 
       <!-- ホームセクション -->
@@ -170,7 +205,11 @@ const minecraftCards = computed(() => {
         <div v-else-if="currentSection === 'gallery'" key="gallery" class="section-content">
           <div class="gallery-section">
             <h2 class="section-header">📚 マイデッキ</h2>
-            <CardGallery :student-id="props.studentId" />
+            <CardGallery
+              v-if="student"
+              :student-id="student.id"
+              :student-context="true"
+            />
           </div>
         </div>
 
@@ -471,6 +510,22 @@ const minecraftCards = computed(() => {
 .sync-fade-enter-from,
 .sync-fade-leave-to {
   opacity: 0;
+}
+
+/* ガチャ開封エラー表示 */
+.gacha-open-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(185, 28, 28, 0.2) 100%);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+.gacha-open-error-text {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.95);
 }
 </style>
 

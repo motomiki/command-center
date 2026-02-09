@@ -59,8 +59,9 @@ export function calculateMotivation(
     motivation += Math.min(avgImprovement * 2, 30);
   }
 
-  // カード獲得数を評価（最大20ポイント）
-  motivation += Math.min(cards.length * 2, 20);
+  // カード獲得数（ガチャで開封した分のみ）を評価（最大20ポイント）
+  const openedCount = cards.filter((c) => c.isOpened).length;
+  motivation += Math.min(openedCount * 2, 20);
 
   // 最近の活動頻度を評価（最大20ポイント）
   const recentActivityDays = getRecentActivityDays(student);

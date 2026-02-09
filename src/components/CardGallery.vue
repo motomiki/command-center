@@ -14,12 +14,17 @@ import { getRarityDisplayName } from '@/utils/rarity';
 interface Props {
   studentId?: string; // 特定の生徒のカードのみ表示（オプション）
   initialFilters?: Partial<FilterState>; // 初期フィルタ状態（オプション）
+  /** 生徒用マイデッキのとき true。開封済みのみ表示し、開封状態フィルタを非表示にする */
+  studentContext?: boolean;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  studentContext: false,
+});
+
 const { cards: cardsRepo } = useRepository();
 
-// 初期フィルタ状態
+// 初期フィルタ状態（管理者用は「すべて」、生徒用は「開封済みのみ」）
 const defaultFilters: FilterState = {
   rarities: [],
   isOpened: null,
@@ -29,8 +34,14 @@ const defaultFilters: FilterState = {
   sortOrder: 'desc',
 };
 
-const filters = ref<FilterState>({
+/** 生徒コンテキスト時は開封済みのみをデフォルトにした有効な初期値 */
+const effectiveDefaultFilters = (): FilterState => ({
   ...defaultFilters,
+  ...(props.studentContext ? { isOpened: true } : {}),
+});
+
+const filters = ref<FilterState>({
+  ...effectiveDefaultFilters(),
   ...props.initialFilters,
 });
 
@@ -47,6 +58,17 @@ const loadCards = async () => {
 
 onMounted(loadCards);
 watch(() => props.studentId, loadCards);
+
+// 生徒コンテキストが true のときは開封済みのみに強制（未開封を一覧に出さない）
+watch(
+  () => props.studentContext,
+  (isStudent) => {
+    if (isStudent && filters.value.isOpened !== true) {
+      filters.value = { ...filters.value, isOpened: true };
+    }
+  },
+  { immediate: true }
+);
 
 // カードデータの取得
 const allCards = computed(() => cardsData.value);
@@ -92,9 +114,9 @@ const clearRarityFilters = () => {
   filters.value.rarities = [];
 };
 
-// フィルタをリセット
+// フィルタをリセット（生徒コンテキスト時は開封済みのみに戻す）
 const resetFilters = () => {
-  filters.value = { ...defaultFilters };
+  filters.value = { ...effectiveDefaultFilters() };
 };
 
 // すべてのレアリティ
@@ -198,8 +220,8 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- 開封状態フィルタ -->
-      <div class="filter-group mb-4">
+      <!-- 開封状態フィルタ（生徒用マイデッキでは非表示・開封済みのみ固定） -->
+      <div v-if="!studentContext" class="filter-group mb-4">
         <div class="filter-label">開封状態</div>
         <div class="toggle-buttons">
           <button

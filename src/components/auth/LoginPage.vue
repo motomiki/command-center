@@ -62,9 +62,10 @@ async function handleStudentLogin(): Promise<void> {
   );
 
   if (success) {
-    // ログインした生徒の profile.id から studentId パラメータを導出
-    const profileId = authStore.profile?.id;
-    await router.replace(`/student/${profileId ?? ''}`);
+    // URL 用には login_id（例: student-6）を優先、未設定時は profile.id（UUID）
+    const studentPathId =
+      authStore.profile?.login_id ?? authStore.profile?.id ?? '';
+    await router.replace(`/student/${studentPathId}`);
   }
 }
 </script>

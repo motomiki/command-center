@@ -23,10 +23,13 @@ export interface MinecraftProject {
 
 /**
  * 生徒データ
- * CardData.studentId と紐付けられる
+ * CardData.studentId と紐付けられる。
+ * id は内部キー（UUID）。URL用には loginId（例: student-1）を使用する。
  */
 export interface Student {
   id: string;
+  /** URL・ログイン用の管理しやすいID（例: student-1）。Supabase 同期時は profiles.login_id から設定。 */
+  loginId?: string;
   name: string; // 生徒名
   avatarUrl?: string; // アバター画像URL（オプション）
   typingHistory: TypingRecord[]; // タイピング練習の履歴

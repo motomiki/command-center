@@ -92,7 +92,8 @@ router.beforeEach(async (to) => {
     // 既に認証済みならロールに応じてリダイレクト
     if (authStore.isAuthenticated) {
       if (authStore.isTeacher) return '/admin';
-      if (authStore.isStudent) return `/student/${authStore.profile?.id ?? ''}`;
+      if (authStore.isStudent)
+        return `/student/${authStore.profile?.login_id ?? authStore.profile?.id ?? ''}`;
     }
     return; // 未認証ならログインページを表示
   }
@@ -106,8 +107,18 @@ router.beforeEach(async (to) => {
   if (requiredRole && authStore.userRole !== requiredRole) {
     // ロールが異なる場合、正しいページへリダイレクト
     if (authStore.isTeacher) return '/admin';
-    if (authStore.isStudent) return `/student/${authStore.profile?.id ?? ''}`;
+    if (authStore.isStudent)
+      return `/student/${authStore.profile?.login_id ?? authStore.profile?.id ?? ''}`;
     return { name: 'login' };
+  }
+
+  // ---- 4. 生徒ルート: 自分のページ以外なら自分の login_id URL へリダイレクト ----
+  if (to.name === 'student' && to.params.studentId && authStore.isStudent) {
+    const myId =
+      authStore.profile?.login_id ?? authStore.profile?.id ?? '';
+    if (myId && to.params.studentId !== myId) {
+      return `/student/${myId}`;
+    }
   }
 });
 

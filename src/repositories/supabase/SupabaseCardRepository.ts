@@ -4,6 +4,19 @@ import type { ICardRepository } from '../interfaces';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { getCachedCards, setCachedCards } from '@/services/LocalCache';
 
+/** カード保存のタイムアウト（ミリ秒） */
+const SAVE_TIMEOUT_MS = 20_000;
+
+/**
+ * 指定ミリ秒後に reject する Promise を返す。
+ * Promise.race で本処理と組み合わせてタイムアウトを実現する。
+ */
+function createTimeoutPromise(ms: number, message: string): Promise<never> {
+  return new Promise((_, reject) => {
+    setTimeout(() => reject(new Error(message)), ms);
+  });
+}
+
 /**
  * Supabase / LocalCache を使った ICardRepository 実装。
  *
@@ -27,43 +40,54 @@ export class SupabaseCardRepository implements ICardRepository {
       );
     }
 
-    // metadata に CardData 固有のフィールドをまとめる
-    const metadata = {
-      type: card.type,
-      score: card.score ?? null,
-      wpm: card.wpm ?? null,
-      diffScore: card.diffScore ?? null,
-      projectId: card.projectId ?? null,
-      issueNumber: card.issueNumber ?? null,
-      typingStats: card.typingStats ?? null,
-      minecraftData: card.minecraftData ?? null,
-    } as unknown as Json;
+    const saveWork = async (): Promise<void> => {
+      // metadata に CardData 固有のフィールドをまとめる
+      const metadata = {
+        type: card.type,
+        score: card.score ?? null,
+        wpm: card.wpm ?? null,
+        diffScore: card.diffScore ?? null,
+        projectId: card.projectId ?? null,
+        issueNumber: card.issueNumber ?? null,
+        typingStats: card.typingStats ?? null,
+        minecraftData: card.minecraftData ?? null,
+      } as unknown as Json;
 
-    const { error } = await supabase.from('cards').upsert({
-      id: card.id,
-      student_id: card.studentId,
-      title: card.title,
-      description: card.description,
-      image_path: card.imageUrl ?? '',
-      rarity: card.rarity ?? 'C',
-      is_opened: card.isOpened ?? false,
-      metadata,
-      updated_at: new Date().toISOString(),
-    });
+      const { error } = await supabase.from('cards').upsert({
+        id: card.id,
+        student_id: card.studentId,
+        title: card.title,
+        description: card.description,
+        image_path: card.imageUrl ?? '',
+        rarity: card.rarity ?? 'C',
+        is_opened: card.isOpened ?? false,
+        metadata,
+        updated_at: new Date().toISOString(),
+      });
 
-    if (error) {
-      throw new Error(`カードの保存に失敗しました: ${error.message}`);
-    }
+      if (error) {
+        console.error('[Supabase] カード保存エラー:', error);
+        throw new Error(`カードの保存に失敗しました: ${error.message}`);
+      }
 
-    // ローカルキャッシュも更新
-    const cards = await getCachedCards();
-    const index = cards.findIndex((c) => c.id === card.id);
-    if (index >= 0) {
-      cards[index] = card;
-    } else {
-      cards.push(card);
-    }
-    await setCachedCards(cards);
+      // ローカルキャッシュも更新
+      const cards = await getCachedCards();
+      const index = cards.findIndex((c) => c.id === card.id);
+      if (index >= 0) {
+        cards[index] = card;
+      } else {
+        cards.push(card);
+      }
+      await setCachedCards(cards);
+    };
+
+    await Promise.race([
+      saveWork(),
+      createTimeoutPromise(
+        SAVE_TIMEOUT_MS,
+        '送信がタイムアウトしました。ネットワークを確認してください。',
+      ),
+    ]);
   }
 
   async markAsOpened(cardId: string): Promise<void> {
@@ -73,19 +97,26 @@ export class SupabaseCardRepository implements ICardRepository {
       );
     }
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('cards')
       .update({
         is_opened: true,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', cardId);
+      .eq('id', cardId)
+      .select('id');
 
     if (error) {
       throw new Error(`カードの開封に失敗しました: ${error.message}`);
     }
 
-    // ローカルキャッシュも更新
+    if (!data || data.length === 0) {
+      throw new Error(
+        'カードの開封に保存できませんでした。しばらくしてからもう一度お試しください。',
+      );
+    }
+
+    // Supabase に反映されたときだけローカルキャッシュを更新
     const cards = await getCachedCards();
     const card = cards.find((c) => c.id === cardId);
     if (card) {

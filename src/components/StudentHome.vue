@@ -99,13 +99,18 @@ const motivationColor = computed(() => {
 // カード派生データ
 // ---------------------------------------------------------------------------
 
-// 未開封カード
+// 開封済みカードのみ（ホーム・統計では「獲得したカード」＝ガチャで開封したもののみ表示）
+const openedCards = computed(() =>
+  cardsData.value.filter((c) => c.isOpened)
+);
+
+// 未開封カード（ガチャ通知・バッジ用）
 const unopenedCards = computed(() =>
   cardsData.value.filter((c) => !c.isOpened)
 );
 
-// 統計情報
-const highestRarity = computed(() => getHighestRarity(cardsData.value));
+// 統計情報（開封済みのみで算出）
+const highestRarity = computed(() => getHighestRarity(openedCards.value));
 const typingStats = computed(() => getTypingStats(props.student.typingHistory));
 // まいんくらふと作品数はマインクラフトタブと同じソース（開封済みかつ minecraftData ありのカード）で統一
 const minecraftStats = computed(() => {
@@ -119,8 +124,8 @@ const minecraftStats = computed(() => {
   };
 });
 
-// 最近のカード（最新6枚）
-const latestCards = computed(() => getLatestCards(cardsData.value, 6));
+// 最近のカード（開封済みのみ・最新6枚）
+const latestCards = computed(() => getLatestCards(openedCards.value, 6));
 
 // モーダル管理
 const selectedCard = ref<CardData | null>(null);
@@ -202,7 +207,7 @@ const handleNavigateToGacha = () => {
         <div class="stat-card">
           <div class="stat-icon">📚</div>
           <div class="stat-label">カード総数</div>
-          <div class="stat-value">{{ cardsData.length }}</div>
+          <div class="stat-value">{{ openedCards.length }}</div>
         </div>
         <div class="stat-card">
           <div class="stat-icon">⭐</div>

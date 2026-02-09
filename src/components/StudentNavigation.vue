@@ -62,35 +62,37 @@ const handleKeyDown = (e: KeyboardEvent, section: DashboardSection) => {
 
 <template>
   <nav class="student-navigation" role="navigation" aria-label="メインナビゲーション">
-    <ul class="nav-list" role="list">
-      <li
-        v-for="item in navItems"
-        :key="item.id"
-        class="nav-item"
-        role="listitem"
-      >
-        <button
-          @click="handleNavClick(item.id)"
-          @keydown="(e) => handleKeyDown(e, item.id)"
-          :class="['nav-button', { active: currentSection === item.id }]"
-          :aria-current="currentSection === item.id ? 'page' : undefined"
-          :aria-label="getNavAriaLabel(item)"
+    <div class="nav-inner">
+      <div class="nav-spacer nav-spacer-left" aria-hidden="true"></div>
+      <ul class="nav-list" role="list">
+        <li
+          v-for="item in navItems"
+          :key="item.id"
+          class="nav-item"
+          role="listitem"
         >
-          <span class="nav-icon-wrapper">
-            <span class="nav-icon">{{ item.icon }}</span>
-            <span
-              v-if="getBadgeCount(item.id) > 0"
-              class="nav-badge"
-              :aria-label="`未開封が${getBadgeCount(item.id)}まい`"
-            >
-              {{ getBadgeCount(item.id) > 99 ? '99+' : getBadgeCount(item.id) }}
+          <button
+            @click="handleNavClick(item.id)"
+            @keydown="(e) => handleKeyDown(e, item.id)"
+            :class="['nav-button', { active: currentSection === item.id }]"
+            :aria-current="currentSection === item.id ? 'page' : undefined"
+            :aria-label="getNavAriaLabel(item)"
+          >
+            <span class="nav-icon-wrapper">
+              <span class="nav-icon">{{ item.icon }}</span>
+              <span
+                v-if="getBadgeCount(item.id) > 0"
+                class="nav-badge"
+                :aria-label="`未開封が${getBadgeCount(item.id)}まい`"
+              >
+                {{ getBadgeCount(item.id) > 99 ? '99+' : getBadgeCount(item.id) }}
+              </span>
             </span>
-          </span>
-          <span class="nav-label">{{ item.label }}</span>
-        </button>
-      </li>
-      <!-- ログアウトボタン -->
-      <li class="nav-item nav-item-logout" role="listitem">
+            <span class="nav-label">{{ item.label }}</span>
+          </button>
+        </li>
+      </ul>
+      <div class="nav-spacer nav-spacer-right">
         <button
           @click="handleLogout"
           class="nav-button logout-button"
@@ -99,8 +101,8 @@ const handleKeyDown = (e: KeyboardEvent, section: DashboardSection) => {
           <span class="nav-icon">🚪</span>
           <span class="nav-label">ログアウト</span>
         </button>
-      </li>
-    </ul>
+      </div>
+    </div>
   </nav>
 </template>
 
@@ -115,6 +117,25 @@ const handleKeyDown = (e: KeyboardEvent, section: DashboardSection) => {
   z-index: 100;
 }
 
+.nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.25rem 0.5rem;
+}
+
+.nav-spacer {
+  flex: 1;
+  min-width: 0;
+}
+
+.nav-spacer-right {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
 .nav-list {
   display: flex;
   list-style: none;
@@ -122,6 +143,7 @@ const handleKeyDown = (e: KeyboardEvent, section: DashboardSection) => {
   padding: 0;
   justify-content: center;
   gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .nav-item {
@@ -213,10 +235,6 @@ const handleKeyDown = (e: KeyboardEvent, section: DashboardSection) => {
 .nav-label {
   font-size: 0.875rem;
   white-space: nowrap;
-}
-
-.nav-item-logout {
-  margin-left: auto;
 }
 
 .logout-button {

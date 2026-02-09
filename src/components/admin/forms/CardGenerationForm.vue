@@ -3,7 +3,8 @@ import { ref, watch, computed, onMounted } from 'vue';
 import DropZone from '@/components/common/DropZone.vue';
 import SsrCard from '@/components/SsrCard.vue';
 import { useRepository } from '@/composables/useRepository';
-import { saveAsset, getAssetUrl } from '@/utils/assetStore';
+import { saveAsset, getAsset, getAssetUrl } from '@/utils/assetStore';
+import { uploadAsset } from '@/services/StorageService';
 import { useToast } from '@/composables/useToast';
 import { generateCardImage } from '@/services/CardGeneratorService';
 import type { AIModelType } from '@/services/aiService';
@@ -175,6 +176,15 @@ const handleBackToEdit = () => {
   step.value = 'form';
 };
 
+/** Blob の MIME から画像拡張子を返す */
+function getImageExtension(blob: Blob): string {
+  const t = blob.type?.toLowerCase() ?? '';
+  if (t.includes('png')) return '.png';
+  if (t.includes('jpeg') || t.includes('jpg')) return '.jpg';
+  if (t.includes('webp')) return '.webp';
+  return '.png';
+}
+
 const handleFinalSubmit = async () => {
   const validationError = validateForm();
   if (validationError) {
@@ -185,18 +195,40 @@ const handleFinalSubmit = async () => {
   isSubmitting.value = true;
 
   try {
+    const cardId = crypto.randomUUID();
+    const imageAssetId = formData.value.imageAssetId;
+
+    let imageUrlForSave: string;
+    const blob = await getAsset(imageAssetId);
+    if (blob) {
+      const ext = getImageExtension(blob);
+      const storagePath = `cards/${cardId}${ext}`;
+      imageUrlForSave = await uploadAsset(blob, storagePath);
+    } else {
+      addToast('画像の読み込みに失敗しました', 'もう一度画像を設定してください。', 'error');
+      isSubmitting.value = false;
+      return;
+    }
+
+    const allCards = await cardsRepo.getAll();
+    const nextIssueNumber =
+      allCards.length === 0
+        ? 1
+        : Math.max(0, ...allCards.map((c) => c.issueNumber ?? 0)) + 1;
+
     await cardsRepo.save({
-      id: `card-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: cardId,
       studentId: props.studentId,
       date: formData.value.date,
       title: formData.value.title.trim(),
       description: formData.value.description.trim(),
-      imageUrl: `idb://${formData.value.imageAssetId}`,
+      imageUrl: imageUrlForSave,
       rarity: formData.value.rarity,
       isOpened: false,
       type: 'typing',
       typingStats: undefined,
       minecraftData: undefined,
+      issueNumber: nextIssueNumber,
     });
 
     addToast('カード生成完了', 'ガチャに追加されました！', 'success');
@@ -214,7 +246,11 @@ const handleFinalSubmit = async () => {
 
     localStorage.removeItem(DRAFT_KEY);
   } catch (error) {
-    addToast('生成失敗', error instanceof Error ? error.message : 'カードの生成に失敗しました', 'error');
+    const message = error instanceof Error ? error.message : 'カードの生成に失敗しました';
+    const isTimeout = message.includes('タイムアウト');
+    const isNetwork = message.includes('ネットワーク') || message.includes('接続');
+    const title = isTimeout ? '送信タイムアウト' : isNetwork ? '通信エラー' : '生成失敗';
+    addToast(title, message, 'error');
   } finally {
     isSubmitting.value = false;
   }

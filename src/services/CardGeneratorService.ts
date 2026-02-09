@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import type { AIModelType } from '@/services/aiService';
 import type { Rarity } from '@/types/card';
+import { trimUniformBorders } from '@/utils/trimUniformBorders';
 
 /** カードのイラストスロットは 2:3 カードの 65% 高さでほぼ 1:1。生成は 1:1 に統一して余白を防ぐ。 */
 const CARD_ART_WIDTH = 520;
@@ -43,16 +44,18 @@ function parseRetryAfterSeconds(err: unknown): number | undefined {
 
 /**
  * プロンプトをTCG用に補強する（品質向上のための自動最適化）。
- * 四隅を四角に保つため、枠・フレーム・角丸を禁止し、全面描画（Full Bleed）を指示する。
+ * 先頭で枠禁止を明示し、末尾で肯定・否定を繰り返して品質を安定させる。
  */
 function buildCardPrompt(userPrompt: string, title: string): string {
+  const rule =
+    '【ルール】カード用イラストのみ。周囲に白・黒・その他の枠や余白は一切つけない。キャンバスの端まで描き切ること。';
   const base = userPrompt.trim() || title.trim() || 'トレーディングカード';
   const style =
     '高品質なイラスト、ファンタジーまたはテック風、子ども向けで温かみのある画風。';
   const constraint =
-    '画像の端まで完全に描かれた、余白のないイラストにしてください。枠線、フレーム、角丸は禁止。画像内に文字やロゴは描かないでください。' +
-    ' Full bleed image, no border, no frame, square corners and sharp edges, filling the entire canvas.';
-  return `${style}テーマ: ${base}。${constraint}`;
+    '画像の端まで完全に描き、余白・枠線・フレーム・角丸は禁止。白い枠・黒い枠も禁止。画像内に文字やロゴは描かないでください。' +
+    ' Full bleed only. No white or black border, no frame, no margin. Edge to edge.';
+  return `${rule} ${style}テーマ: ${base}。${constraint}`;
 }
 
 /**
@@ -176,6 +179,7 @@ export async function generateCardImage(
   }
   const finalPrompt = buildCardPrompt(prompt, title);
   const dataUrl = await generateCardArtDataUrl(apiKey, finalPrompt, modelType);
-  const blob = await resizeToCardArt(dataUrl);
+  const trimmedDataUrl = await trimUniformBorders(dataUrl);
+  const blob = await resizeToCardArt(trimmedDataUrl);
   return blob;
 }

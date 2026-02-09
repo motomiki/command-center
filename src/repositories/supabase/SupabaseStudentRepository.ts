@@ -17,7 +17,9 @@ export class SupabaseStudentRepository implements IStudentRepository {
 
   async getById(id: string): Promise<Student | null> {
     const students = await getCachedStudents();
-    return students.find((s) => s.id === id) ?? null;
+    return (
+      students.find((s) => s.id === id || s.loginId === id) ?? null
+    );
   }
 
   async save(student: Student): Promise<void> {

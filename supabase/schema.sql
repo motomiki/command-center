@@ -25,6 +25,13 @@ create table if not exists profiles (
 -- 既存の profiles に typing_history がない場合に追加（過去に作成したテーブル用）
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS typing_history jsonb DEFAULT '[]'::jsonb;
 
+-- URL・ログイン用の管理しやすいID（例: student-1, student-6）。生徒のみ使用、先生は NULL。
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS login_id text;
+-- 生徒の login_id は一意（既存データ移行後は NOT NULL を検討可）
+CREATE UNIQUE INDEX IF NOT EXISTS profiles_student_login_id_key ON profiles (login_id) WHERE role = 'student';
+-- 既存 DB で login_id が空の生徒には auth.users の email ローカル部を backfill する例:
+-- UPDATE profiles SET login_id = (SELECT split_part(email, '@', 1) FROM auth.users WHERE auth.users.id = profiles.id) WHERE role = 'student' AND (login_id IS NULL OR login_id = '');
+
 -- ============================================================
 -- 2. CARDS Table (Achievements & Gacha Results)
 -- ============================================================
@@ -90,6 +97,13 @@ drop policy if exists "Teachers can insert/update cards" on cards;
 create policy "Teachers can insert/update cards"
   on cards for all
   using ( exists ( select 1 from profiles where id = auth.uid() and role = 'teacher' ) );
+
+-- Students: 自分あてのカードの開封のみ更新可能（ガチャ開封で is_opened を true にするため）
+drop policy if exists "Students can update own cards as opened" on cards;
+create policy "Students can update own cards as opened"
+  on cards for update
+  using ( student_id = auth.uid() )
+  with check ( student_id = auth.uid() );
 
 -- ----- MINECRAFT_WORKS -----
 drop policy if exists "Works are viewable by everyone" on minecraft_works;

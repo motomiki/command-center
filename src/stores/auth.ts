@@ -21,6 +21,8 @@ export interface AuthProfile {
   display_name: string | null;
   avatar_url: string | null;
   typing_history: unknown;
+  /** URL・ログイン用の管理しやすいID（例: student-1）。生徒のみ設定、先生は null。 */
+  login_id: string | null;
   updated_at: string;
   created_at: string;
 }

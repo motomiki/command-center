@@ -16,6 +16,7 @@ export interface Database {
           display_name: string | null
           avatar_url: string | null
           typing_history: Json
+          login_id: string | null
           updated_at: string
           created_at: string
         }
@@ -25,6 +26,7 @@ export interface Database {
           display_name?: string | null
           avatar_url?: string | null
           typing_history?: Json
+          login_id?: string | null
           updated_at?: string
           created_at?: string
         }
@@ -34,6 +36,7 @@ export interface Database {
           display_name?: string | null
           avatar_url?: string | null
           typing_history?: Json
+          login_id?: string | null
           updated_at?: string
           created_at?: string
         }

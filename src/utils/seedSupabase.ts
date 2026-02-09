@@ -1,7 +1,7 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import type { Json } from '@/types/supabase';
 import { mockStudents, mockCards } from '@/data/mockData';
-import type { Student, TypingRecord, MinecraftProject } from '@/types/student';
+import type { Student } from '@/types/student';
 import type { CardData } from '@/types/card';
 
 // ---------------------------------------------------------------------------
@@ -115,20 +115,20 @@ export function generateSeedSQL(): string {
   lines.push('-- 2. プロフィール');
   lines.push('');
 
-  // Teacher profile
+  // Teacher profile（login_id は先生では NULL）
   lines.push(
-    `INSERT INTO profiles (id, role, display_name, typing_history)` +
-    ` VALUES ('${TEACHER_UUID}', 'teacher', '先生', '[]'::jsonb)` +
+    `INSERT INTO profiles (id, role, display_name, typing_history, login_id)` +
+    ` VALUES ('${TEACHER_UUID}', 'teacher', '先生', '[]'::jsonb, NULL)` +
     ` ON CONFLICT (id) DO NOTHING;`,
   );
 
-  // Student profiles
+  // Student profiles（login_id に student-1 等を設定して URL で利用）
   for (const student of mockStudents) {
     const uuid = toSeedUuid(student.id);
     const history = jsonLiteral(student.typingHistory);
     lines.push(
-      `INSERT INTO profiles (id, role, display_name, avatar_url, typing_history)` +
-      ` VALUES ('${uuid}', 'student', '${esc(student.name)}', ${student.avatarUrl ? `'${esc(student.avatarUrl)}'` : 'NULL'}, ${history})` +
+      `INSERT INTO profiles (id, role, display_name, avatar_url, typing_history, login_id)` +
+      ` VALUES ('${uuid}', 'student', '${esc(student.name)}', ${student.avatarUrl ? `'${esc(student.avatarUrl)}'` : 'NULL'}, ${history}, '${esc(student.id)}')` +
       ` ON CONFLICT (id) DO NOTHING;`,
     );
   }
@@ -275,6 +275,7 @@ export async function seedViaApi(
     display_name: s.name,
     avatar_url: s.avatarUrl ?? null,
     typing_history: s.typingHistory as unknown as Json,
+    login_id: s.loginId ?? s.id,
     updated_at: new Date().toISOString(),
   }));
 
