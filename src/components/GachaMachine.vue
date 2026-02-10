@@ -344,9 +344,6 @@ onUnmounted(() => {
 
 <template>
   <div class="gacha-container" role="region" aria-label="ガチャマシン">
-    <!-- ===== Decorative dot background ===== -->
-    <div class="dot-bg" aria-hidden="true"></div>
-
     <!-- ===== Machine (idle / spinning / revealing) ===== -->
     <div v-if="gachaState !== 'opened'" class="machine-wrapper">
       <div
@@ -621,20 +618,6 @@ onUnmounted(() => {
 }
 @media (min-width: 1024px) {
   .gacha-container { min-height: 540px; padding: 2rem; }
-}
-
-/* --- Decorative dot background ------------------------------------------ */
-.dot-bg {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  opacity: 0.18;
-  pointer-events: none;
-  background-image:
-    radial-gradient(#3B82F6 2px, transparent 2px),
-    radial-gradient(#F59E0B 2px, transparent 2px);
-  background-size: 30px 30px;
-  background-position: 0 0, 15px 15px;
 }
 
 /* --- Machine wrapper ---------------------------------------------------- */

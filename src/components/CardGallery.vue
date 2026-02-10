@@ -366,19 +366,41 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.card-gallery-outer {
+  position: relative;
+  min-height: 100vh;
+}
+
+/* 画面全体に固定表示する水玉模様（ビューポート全体に表示） */
+.dot-bg-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.2;
+  background-image:
+    radial-gradient(#3B82F6 2px, transparent 2px),
+    radial-gradient(#F59E0B 2px, transparent 2px);
+  background-size: 30px 30px;
+  background-position: 0 0, 15px 15px;
+}
+
 .card-gallery-container {
+  position: relative;
+  z-index: 0;
   width: 100%;
   max-width: 1400px;
   margin: 0 auto;
   padding: 2rem;
 }
 
-/* 統計情報セクション */
+/* 統計情報セクション（ライトテーマ） */
 .statistics-section {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  background: #ffffff;
   border-radius: 20px;
   padding: 2rem;
-  border: 2px solid rgba(102, 126, 234, 0.2);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08);
 }
 
 .statistics-grid {
@@ -389,28 +411,23 @@ onUnmounted(() => {
 }
 
 .stat-card {
-  background: rgba(255, 255, 255, 0.05);
+  background: #f8fafc;
   border-radius: 12px;
   padding: 1rem;
   text-align: center;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid #e2e8f0;
 }
 
 .stat-label {
   font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.7);
+  color: #64748b;
   margin-bottom: 0.5rem;
 }
 
 .stat-value {
   font-size: 2rem;
   font-weight: bold;
-  color: white;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #1e293b;
 }
 
 .rarity-stats {
@@ -427,57 +444,58 @@ onUnmounted(() => {
   padding: 0.5rem 1rem;
   border-radius: 20px;
   font-size: 0.875rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
 }
 
 .rarity-stat-badge[data-rarity="UR"] {
-  background: linear-gradient(135deg, rgba(147, 51, 234, 0.2) 0%, rgba(236, 72, 153, 0.2) 100%);
-  border-color: rgba(147, 51, 234, 0.3);
+  background: #f3e8ff;
+  border-color: #e9d5ff;
 }
 
 .rarity-stat-badge[data-rarity="SR"] {
-  background: linear-gradient(135deg, rgba(255, 140, 0, 0.2) 0%, rgba(255, 165, 0, 0.2) 100%);
-  border-color: rgba(255, 140, 0, 0.3);
+  background: #ffedd5;
+  border-color: #fed7aa;
 }
 
 .rarity-stat-badge[data-rarity="RR"] {
-  background: linear-gradient(135deg, rgba(0, 102, 255, 0.2) 0%, rgba(0, 150, 255, 0.2) 100%);
-  border-color: rgba(0, 102, 255, 0.3);
+  background: #dbeafe;
+  border-color: #bfdbfe;
 }
 
 .rarity-stat-badge[data-rarity="R"] {
-  background: linear-gradient(135deg, rgba(0, 170, 0, 0.2) 0%, rgba(0, 200, 0, 0.2) 100%);
-  border-color: rgba(0, 170, 0, 0.3);
+  background: #dcfce7;
+  border-color: #bbf7d0;
 }
 
 .rarity-stat-badge[data-rarity="U"] {
-  background: linear-gradient(135deg, rgba(234, 179, 8, 0.2) 0%, rgba(250, 204, 21, 0.2) 100%);
-  border-color: rgba(234, 179, 8, 0.3);
+  background: #fef9c3;
+  border-color: #fde047;
 }
 
 .rarity-stat-badge[data-rarity="C"] {
-  background: rgba(128, 128, 128, 0.1);
-  border-color: rgba(128, 128, 128, 0.2);
+  background: #f1f5f9;
+  border-color: #e2e8f0;
 }
 
 .rarity-stat-label {
-  color: rgba(255, 255, 255, 0.9);
+  color: #475569;
   font-weight: 500;
 }
 
 .rarity-stat-value {
-  color: white;
+  color: #1e293b;
   font-weight: bold;
   font-size: 1rem;
 }
 
-/* フィルタセクション */
+/* フィルタセクション（ライトテーマ） */
 .filters-section {
-  background: rgba(255, 255, 255, 0.03);
+  background: #ffffff;
   border-radius: 16px;
   padding: 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08);
 }
 
 .search-bar {
@@ -494,22 +512,22 @@ onUnmounted(() => {
   width: 100%;
   padding: 1rem 3rem 1rem 1.5rem;
   font-size: 1rem;
-  background: rgba(255, 255, 255, 0.1);
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  background: #f8fafc;
+  border: 2px solid #cbd5e1;
   border-radius: 50px;
-  color: white;
+  color: #1e293b;
   outline: none;
   transition: all 0.3s ease;
 }
 
 .search-input::placeholder {
-  color: rgba(255, 255, 255, 0.5);
+  color: #94a3b8;
 }
 
 .search-input:focus {
-  border-color: #667eea;
-  background: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
+  border-color: #6366f1;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
 }
 
 .search-clear-btn {
@@ -520,9 +538,9 @@ onUnmounted(() => {
   width: 2rem;
   height: 2rem;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
+  background: #e2e8f0;
   border: none;
-  color: white;
+  color: #475569;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -531,7 +549,7 @@ onUnmounted(() => {
 }
 
 .search-clear-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: #cbd5e1;
   transform: translateY(-50%) scale(1.1);
 }
 
@@ -541,7 +559,7 @@ onUnmounted(() => {
 
 .filter-label {
   font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.7);
+  color: #64748b;
   margin-bottom: 0.75rem;
   font-weight: 500;
 }
@@ -559,34 +577,35 @@ onUnmounted(() => {
   border-radius: 20px;
   font-size: 0.875rem;
   font-weight: 500;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.8);
+  border: 2px solid #e2e8f0;
+  background: #f1f5f9;
+  color: #334155;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .rarity-filter-btn:hover,
 .type-filter-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: #e2e8f0;
   transform: translateY(-2px);
 }
 
 .rarity-filter-btn.active,
 .type-filter-btn.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-color: #667eea;
+  background: #6366f1;
+  border-color: #6366f1;
   color: white;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
 
 .rarity-filter-btn.clear-btn {
-  background: rgba(255, 107, 107, 0.2);
-  border-color: rgba(255, 107, 107, 0.4);
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
 }
 
 .rarity-filter-btn.clear-btn:hover {
-  background: rgba(255, 107, 107, 0.3);
+  background: #fee2e2;
 }
 
 .rarity-filter-btn[data-rarity="UR"].active {
@@ -630,28 +649,28 @@ onUnmounted(() => {
   border-radius: 20px;
   font-size: 0.875rem;
   font-weight: 500;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.8);
+  border: 2px solid #e2e8f0;
+  background: #f1f5f9;
+  color: #334155;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .toggle-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: #e2e8f0;
     transform: translateY(-2px);
   }
   
   .sort-order-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: #e2e8f0;
     transform: scale(1.1);
   }
   
   .reset-btn:hover {
-    background: rgba(255, 107, 107, 0.3);
+    background: #fee2e2;
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
   }
   
   .card-clickable:hover {
@@ -660,10 +679,10 @@ onUnmounted(() => {
 }
 
 .toggle-btn.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-color: #667eea;
+  background: #6366f1;
+  border-color: #6366f1;
   color: white;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
 
 .sort-controls {
@@ -676,26 +695,26 @@ onUnmounted(() => {
   padding: 0.5rem 1rem;
   border-radius: 12px;
   font-size: 0.875rem;
-  background: rgba(255, 255, 255, 0.1);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  color: white;
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  color: #1e293b;
   outline: none;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .sort-select:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 10px rgba(102, 126, 234, 0.3);
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
 }
 
 .sort-order-btn {
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  color: white;
+  background: #f1f5f9;
+  border: 2px solid #e2e8f0;
+  color: #475569;
   font-size: 1.25rem;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -715,9 +734,9 @@ onUnmounted(() => {
   border-radius: 25px;
   font-size: 0.875rem;
   font-weight: 500;
-  background: rgba(255, 107, 107, 0.2);
-  border: 2px solid rgba(255, 107, 107, 0.4);
-  color: rgba(255, 107, 107, 1);
+  background: #fef2f2;
+  border: 2px solid #fecaca;
+  color: #b91c1c;
   cursor: pointer;
   transition: all 0.3s ease;
 }
@@ -799,23 +818,23 @@ onUnmounted(() => {
   }
 }
 
-/* 空状態 */
+/* 空状態（ライトテーマ） */
 .empty-state {
   text-align: center;
   padding: 4rem 2rem;
-  color: rgba(255, 255, 255, 0.7);
+  color: #475569;
 }
 
 .empty-icon {
   font-size: 4rem;
   margin-bottom: 1rem;
-  opacity: 0.5;
+  opacity: 0.6;
 }
 
 .empty-title {
   font-size: 1.5rem;
   font-weight: bold;
-  color: white;
+  color: #1e293b;
   margin-bottom: 0.5rem;
 }
 
@@ -829,17 +848,17 @@ onUnmounted(() => {
   border-radius: 25px;
   font-size: 1rem;
   font-weight: 500;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #6366f1;
   border: none;
   color: white;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
 
 .empty-reset-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
 }
 
 /* レスポンシブ対応: 追加の微調整 */

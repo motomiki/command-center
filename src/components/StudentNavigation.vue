@@ -109,9 +109,9 @@ const handleKeyDown = (e: KeyboardEvent, section: DashboardSection) => {
 <style scoped>
 .student-navigation {
   width: 100%;
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid #e2e8f0;
   position: sticky;
   top: 0;
   z-index: 100;
@@ -159,7 +159,7 @@ const handleKeyDown = (e: KeyboardEvent, section: DashboardSection) => {
   min-height: 44px;
   background: transparent;
   border: none;
-  color: rgba(255, 255, 255, 0.7);
+  color: #64748b;
   cursor: pointer;
   transition: all 0.3s ease;
   border-radius: 12px;
@@ -176,16 +176,16 @@ const handleKeyDown = (e: KeyboardEvent, section: DashboardSection) => {
 
 @media (hover: hover) and (pointer: fine) {
   .nav-button:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
+    background: #f1f5f9;
+    color: #334155;
     transform: translateY(-2px);
   }
 }
 
 .nav-button.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #6366f1;
   color: white;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.2), 0 4px 6px -2px rgba(99, 102, 241, 0.15);
 }
 
 .nav-button.active::after {
@@ -224,12 +224,12 @@ const handleKeyDown = (e: KeyboardEvent, section: DashboardSection) => {
   line-height: 1.25rem;
   color: #fff;
   background: #ef4444;
-  border: 2px solid rgba(255, 255, 255, 0.9);
+  border: 2px solid rgba(255, 255, 255, 0.95);
   border-radius: 9999px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 .nav-label {
@@ -238,12 +238,12 @@ const handleKeyDown = (e: KeyboardEvent, section: DashboardSection) => {
 }
 
 .logout-button {
-  color: rgba(255, 255, 255, 0.5) !important;
+  color: #64748b !important;
 }
 
 .logout-button:hover {
-  color: #fca5a5 !important;
-  background: rgba(239, 68, 68, 0.15) !important;
+  color: #ef4444 !important;
+  background: #fef2f2 !important;
 }
 
 /* アクセシビリティ: アニメーションを好まないユーザー向け */

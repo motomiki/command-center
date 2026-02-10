@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ja"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Vibrant Kids Game Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Kosugi+Maru&amp;family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+
+<!-- ここから参考にしてください -->
+
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#6366f1", // Indigo 500 - energetic but readable
+                        secondary: "#ec4899", // Pink 500 - playful accent
+                        accent: "#f59e0b", // Amber 500 - for stars/gold
+                        "background-light": "#f0f9ff", // Sky 50
+                        "background-dark": "#0f172a", // Slate 900
+                        "card-light": "#ffffff",
+                        "card-dark": "#1e293b",
+                        "soft-blue": "#e0f2fe",
+                        "soft-purple": "#f3e8ff",
+                        "soft-green": "#dcfce7",
+                        "soft-rose": "#ffe4e6",
+                    },
+                    fontFamily: {
+                        display: ["'Kosugi Maru'", "'Nunito'", "sans-serif"],
+                        body: ["'Kosugi Maru'", "'Nunito'", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "1rem",
+                        'xl': "1.5rem",
+                        '2xl': "2rem",
+                    },
+                    boxShadow: {
+                        'soft': '0 10px 40px -10px rgba(0,0,0,0.08)',
+                        'glow': '0 0 20px rgba(99, 102, 241, 0.5)',
+                        'glow-gold': '0 0 25px rgba(245, 158, 11, 0.4)',
+                    },
+                },
+            },
+        };
+    </script>
+<style>
+        body {
+            font-family: 'Kosugi Maru', 'Nunito', sans-serif;
+        }
+        .card-shiny-effect {
+            position: relative;
+            overflow: hidden;
+        }
+        .card-shiny-effect::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 100%);
+            transform: skewX(-25deg);
+            animation: shine 6s infinite;
+        }
+        @keyframes shine {
+            0% { left: -100%; }
+            20% { left: 200%; }
+            100% { left: 200%; }
+        }
+        .avatar-pulse {
+            animation: pulse-border 2s infinite;
+        }
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+            70% { box-shadow: 0 0 0 15px rgba(99, 102, 241, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-100 transition-colors duration-300 min-h-screen">
+<nav class="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="flex items-center justify-between h-20">
+<div class="flex-1 flex justify-center space-x-4 md:space-x-12">
+<a class="flex flex-col items-center group relative" href="#">
+<div class="w-12 h-12 bg-primary text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200 dark:shadow-none transform group-hover:scale-110 transition-transform duration-200">
+<span class="material-icons-round">home</span>
+</div>
+<span class="text-xs font-bold mt-1 text-primary">ホーム</span>
+<div class="absolute -bottom-2 w-1 h-1 bg-primary rounded-full"></div>
+</a>
+<a class="flex flex-col items-center group text-slate-400 hover:text-secondary transition-colors" href="#">
+<div class="w-10 h-10 rounded-2xl flex items-center justify-center group-hover:bg-soft-rose dark:group-hover:bg-slate-800 transition-colors">
+<span class="material-icons-round text-3xl">casino</span>
+</div>
+<span class="text-xs font-bold mt-1">ガチャ</span>
+</a>
+<a class="flex flex-col items-center group text-slate-400 hover:text-green-500 transition-colors" href="#">
+<div class="w-10 h-10 rounded-2xl flex items-center justify-center group-hover:bg-soft-green dark:group-hover:bg-slate-800 transition-colors">
+<span class="material-icons-round text-3xl">style</span>
+</div>
+<span class="text-xs font-bold mt-1">マイデッキ</span>
+</a>
+<a class="flex flex-col items-center group text-slate-400 hover:text-purple-500 transition-colors" href="#">
+<div class="w-10 h-10 rounded-2xl flex items-center justify-center group-hover:bg-soft-purple dark:group-hover:bg-slate-800 transition-colors">
+<span class="material-icons-round text-3xl">sports_esports</span>
+</div>
+<span class="text-xs font-bold mt-1">まいんくらふと</span>
+</a>
+</div>
+<div class="absolute right-4 flex items-center">
+<button class="flex flex-col items-center text-slate-400 hover:text-red-500 transition-colors">
+<span class="material-icons-round">logout</span>
+<span class="text-[10px] font-bold">ログアウト</span>
+</button>
+</div>
+</div>
+</div>
+</nav>
+<main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+<section class="relative bg-white dark:bg-card-dark rounded-3xl p-8 shadow-soft dark:shadow-none border border-slate-100 dark:border-slate-700 overflow-hidden">
+<div class="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-blue-100 dark:bg-blue-900/30 rounded-full blur-3xl opacity-50"></div>
+<div class="absolute bottom-0 left-0 -ml-16 -mb-16 w-64 h-64 bg-purple-100 dark:bg-purple-900/30 rounded-full blur-3xl opacity-50"></div>
+<div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+<div class="flex flex-col items-center text-center">
+<div class="relative w-32 h-32 md:w-40 md:h-40 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 p-1 avatar-pulse">
+<div class="w-full h-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden border-4 border-white dark:border-slate-800">
+<img alt="User Avatar" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBhNjG4N8-uT8UetLt65K-RXzGOgNwnVDgherFJ78hPUhi1ddyzT8QdUp6cti0pB_WnjWNhnMyyCSEmN4Qxe9CGWRJaM4umKRjJFuQryRnNu6FLSH4PPyz6Q-PJBGRC1sychOAarA6cGfrDlz5Mi2Ydar2YzsagBZ1Rz0cQYTDsFFhjfhqtynHT1zLq6f61XWkDCKwbuUlscoKbR5GNgPcSdV5A6T_Y73-0b6rxsrQ5odQExuiIM7tyOO2eIqLLS4leryzBxfkr2chy"/>
+</div>
+<div class="absolute bottom-0 right-0 bg-accent text-white w-10 h-10 flex items-center justify-center rounded-full border-4 border-white dark:border-slate-800 font-bold shadow-lg">
+                            12
+                        </div>
+</div>
+<h2 class="mt-4 text-2xl font-black tracking-tight text-slate-800 dark:text-white">じゅんのダッシュボード</h2>
+<span class="text-slate-500 dark:text-slate-400 text-sm font-bold">勇者レベル</span>
+</div>
+<div class="flex-1 w-full md:max-w-xl">
+<div class="flex justify-between items-end mb-2">
+<span class="font-bold text-slate-600 dark:text-slate-300">きょうのやるき</span>
+<span class="text-4xl font-black text-primary drop-shadow-sm">52%</span>
+</div>
+<div class="w-full h-6 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden shadow-inner p-1">
+<div class="h-full bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full relative overflow-hidden" style="width: 52%">
+<div class="absolute inset-0 bg-white/20 animate-[shine_2s_infinite]"></div>
+</div>
+</div>
+<div class="mt-3 text-center">
+<span class="inline-block px-4 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded-full text-sm font-bold border border-yellow-200 dark:border-yellow-800">
+                            ✨ やるきいっぱい！がんばろう！ ✨
+                        </span>
+</div>
+</div>
+</div>
+</section>
+<section>
+<div class="flex items-center justify-center mb-8 relative">
+<h2 class="text-3xl font-black text-slate-800 dark:text-white relative z-10 px-4 bg-background-light dark:bg-background-dark">
+                    すうじでみるぼく・わたし
+                </h2>
+<div class="absolute w-full h-1 bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent top-1/2"></div>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+<div class="bg-white dark:bg-card-dark p-6 rounded-2xl shadow-sm border-b-4 border-cyan-500 hover:-translate-y-1 transition-transform duration-300">
+<div class="flex flex-col items-center">
+<div class="w-14 h-14 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-500 rounded-2xl flex items-center justify-center mb-3">
+<span class="material-icons-round text-3xl">style</span>
+</div>
+<span class="text-sm font-bold text-slate-400">カード総数</span>
+<span class="text-3xl font-black text-slate-800 dark:text-white mt-1">6</span>
+</div>
+</div>
+<div class="bg-white dark:bg-card-dark p-6 rounded-2xl shadow-sm border-b-4 border-accent hover:-translate-y-1 transition-transform duration-300">
+<div class="flex flex-col items-center">
+<div class="w-14 h-14 bg-yellow-100 dark:bg-yellow-900/30 text-accent rounded-2xl flex items-center justify-center mb-3">
+<span class="material-icons-round text-3xl">star</span>
+</div>
+<span class="text-sm font-bold text-slate-400">さいこうレアリティ</span>
+<span class="text-xl font-black text-primary mt-1">ウルトラレア</span>
+</div>
+</div>
+<div class="bg-white dark:bg-card-dark p-6 rounded-2xl shadow-sm border-b-4 border-purple-500 hover:-translate-y-1 transition-transform duration-300">
+<div class="flex flex-col items-center">
+<div class="w-14 h-14 bg-purple-100 dark:bg-purple-900/30 text-purple-500 rounded-2xl flex items-center justify-center mb-3">
+<span class="material-icons-round text-3xl">keyboard</span>
+</div>
+<span class="text-sm font-bold text-slate-400">タイピングスコア</span>
+<span class="text-3xl font-black text-slate-800 dark:text-white mt-1">720</span>
+</div>
+</div>
+<div class="bg-white dark:bg-card-dark p-6 rounded-2xl shadow-sm border-b-4 border-orange-500 hover:-translate-y-1 transition-transform duration-300">
+<div class="flex flex-col items-center">
+<div class="w-14 h-14 bg-orange-100 dark:bg-orange-900/30 text-orange-500 rounded-2xl flex items-center justify-center mb-3">
+<span class="material-icons-round text-3xl">construction</span>
+</div>
+<span class="text-sm font-bold text-slate-400">まいんくらふと作品</span>
+<span class="text-3xl font-black text-slate-800 dark:text-white mt-1">0</span>
+</div>
+</div>
+</div>
+</section>
+<section>
+<div class="flex items-center justify-center mb-10 relative">
+<h2 class="text-3xl font-black text-slate-800 dark:text-white relative z-10 px-4 bg-background-light dark:bg-background-dark flex items-center gap-2">
+<span class="material-icons-round text-accent">auto_awesome</span>
+                    さいきんのカード
+                    <span class="material-icons-round text-accent">auto_awesome</span>
+</h2>
+</div>
+
+<!-- ここまでを参考にしてください -->
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<div class="group relative perspective-1000">
+<div class="relative bg-white dark:bg-card-dark rounded-xl p-3 shadow-xl transform transition-all duration-300 hover:scale-105 hover:rotate-1 border-2 border-yellow-300 dark:border-yellow-600 card-shiny-effect">
+<div class="flex justify-between items-center mb-2 px-1">
+<div class="flex items-center gap-1">
+<span class="material-icons-round text-yellow-500 text-sm">stars</span>
+<span class="font-bold text-slate-700 dark:text-slate-200 text-sm">建築の達人！</span>
+</div>
+<span class="text-xs font-black text-yellow-600 bg-yellow-100 px-2 py-0.5 rounded-full">UR アンコモン</span>
+</div>
+<div class="aspect-[4/3] rounded-lg overflow-hidden bg-slate-100 mb-3 border border-slate-200 dark:border-slate-700 relative group-hover:shadow-glow-gold transition-shadow duration-300">
+<img alt="Fantasy Construction" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBZyGafnnmbjH2slBoGP1uerGjCCOOQrHXq88Nrsezh545REL0UkryYMjgORIJNK54FgKONNvmoMQODK0RB7J_33vaci3dfdUxokFGFKsZsHJiAR9xMvvkQYNQDB-jRGBDpcaiLOoSk2WBN95lNIxE9QoUzy4YWvLbqps1FWGgggY0t8mjtjUCFAJewMAXYwLgKbDT-gFhtycC34LWh2wLhm69TEUKDrez7Kolu3ravTlJsllWm-A52In7vAM3dS_4-gXa-as72ALd2"/>
+<div class="absolute bottom-2 right-2 bg-white/90 dark:bg-black/70 px-2 py-1 rounded text-[10px] font-mono">2026年2月9日</div>
+</div>
+<p class="text-sm text-slate-600 dark:text-slate-300 font-bold mb-4 px-1">さぁ〜データベースに保存できるのか？</p>
+<div class="space-y-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg p-2 text-xs">
+<div class="flex justify-between items-center">
+<span class="flex items-center gap-1 text-slate-500"><span class="w-2 h-2 rounded-full bg-yellow-400"></span> ブラインド</span>
+<span class="font-bold text-slate-700 dark:text-slate-200">かんぺき</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="flex items-center gap-1 text-slate-500"><span class="w-2 h-2 rounded-full bg-red-400"></span> エンドラ討伐</span>
+<span class="font-bold text-slate-700 dark:text-slate-200">ゆうしゃ</span>
+</div>
+</div>
+<div class="mt-3 flex justify-between items-center text-[10px] text-slate-400 border-t border-slate-100 dark:border-slate-700 pt-2">
+<div class="flex gap-2">
+<span>⚡ ぎじゅつ</span>
+<span>🎨 色彩</span>
+</div>
+<span>No.??? ★</span>
+</div>
+</div>
+</div>
+<div class="group relative perspective-1000">
+<div class="relative bg-gradient-to-b from-white to-blue-50 dark:from-card-dark dark:to-slate-900 rounded-xl p-3 shadow-xl transform transition-all duration-300 hover:scale-105 hover:-rotate-1 border-2 border-cyan-300 dark:border-cyan-700 card-shiny-effect">
+<div class="flex justify-between items-center mb-2 px-1">
+<div class="flex items-center gap-1">
+<span class="material-icons-round text-cyan-500 text-sm">bolt</span>
+<span class="font-bold text-slate-700 dark:text-slate-200 text-sm">終わりの達人！！</span>
+</div>
+<span class="text-xs font-black text-cyan-600 bg-cyan-100 px-2 py-0.5 rounded-full">SR レア</span>
+</div>
+<div class="aspect-[4/3] rounded-lg overflow-hidden bg-slate-100 mb-3 border border-slate-200 dark:border-slate-700 relative group-hover:shadow-glow transition-shadow duration-300">
+<img alt="Lightning Mage" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDI-fAe-gX_rtF5txEOOObafjatROCGbWbPTdZdWKF218Sug64w99c7MoD6TqGkz3QeKVAXHF_PKQjE8FfmhIxESY4FRHuBkDXZtzDFv2CRMYqiKyvHq5VsWc2VaNgcdClXo7DKeuqQCGlLIkKSf9BmL5CMzSai0ulUvQwS7FHuaSHrv98saZ05q-Ap734L6ebkoIQPtG2kRvCrmnqCeJr3zZjdgR1K1CIl4sCxWYsQILVLr01NFzoatY-1TQhB0rxqf1asJWLd1LQx"/>
+<div class="absolute bottom-2 right-2 bg-white/90 dark:bg-black/70 px-2 py-1 rounded text-[10px] font-mono">2026年2月9日</div>
+</div>
+<p class="text-sm text-slate-600 dark:text-slate-300 font-bold mb-4 px-1">これでイラストを保存できるはずだ！</p>
+<div class="space-y-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg p-2 text-xs">
+<div class="flex justify-between items-center">
+<span class="flex items-center gap-1 text-slate-500"><span class="material-icons-round text-[10px]">space_bar</span> スペースキー</span>
+<span class="font-bold text-slate-700 dark:text-slate-200">ジャンプ</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="flex items-center gap-1 text-slate-500"><span class="material-icons-round text-[10px]">castle</span> トラップタワー</span>
+<span class="font-bold text-slate-700 dark:text-slate-200">こうりつ</span>
+</div>
+</div>
+<div class="mt-3 flex justify-between items-center text-[10px] text-slate-400 border-t border-slate-100 dark:border-slate-700 pt-2">
+<div class="flex gap-2">
+<span>💻 コード</span>
+<span>🔮 そうぞう</span>
+</div>
+<span>No.??? ★</span>
+</div>
+</div>
+</div>
+<div class="group relative perspective-1000">
+<div class="relative bg-gradient-to-b from-white to-purple-50 dark:from-card-dark dark:to-slate-900 rounded-xl p-3 shadow-xl transform transition-all duration-300 hover:scale-105 hover:rotate-1 border-2 border-purple-300 dark:border-purple-600 card-shiny-effect">
+<div class="flex justify-between items-center mb-2 px-1">
+<div class="flex items-center gap-1">
+<span class="material-icons-round text-purple-500 text-sm">psychology</span>
+<span class="font-bold text-slate-700 dark:text-slate-200 text-sm">集中力の達人！</span>
+</div>
+<span class="text-xs font-black text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">SSR 激レア</span>
+</div>
+<div class="aspect-[4/3] rounded-lg overflow-hidden bg-slate-100 mb-3 border border-slate-200 dark:border-slate-700 relative group-hover:shadow-glow transition-shadow duration-300">
+<img alt="Ice Wizard" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC1boEPm9nM7kPQycHuVLoV3HLgJIeAx8zLkZXed3C5V1kpAMmMJX4JQxjTZcmuJ5QHPFB5bik2nb4kgqspVKTbbrFlGD56Mw0AlbiKR9TP4ZW3_406e875oSvSIHG9oHkWMDv5XVKMUtfMtHul3OaUlOIw2liizRo9QX4dBgbkZUpSO0bhRUwFEGziIXDuMVYaU1rZ3Vxp7RytFQwATW-3u76Vg1aqCc4Sn5FH9taG_lJRqpTWVV0LMyLiN5DIKmolMhYYf2TuX3-F"/>
+<div class="absolute bottom-2 right-2 bg-white/90 dark:bg-black/70 px-2 py-1 rounded text-[10px] font-mono">2026年2月9日</div>
+</div>
+<p class="text-sm text-slate-600 dark:text-slate-300 font-bold mb-4 px-1">これで一連の流れはOK?あとは通し番号だけ</p>
+<div class="space-y-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg p-2 text-xs">
+<div class="flex justify-between items-center">
+<span class="flex items-center gap-1 text-slate-500"><span class="material-icons-round text-[10px]">check_circle</span> せいかくさ</span>
+<span class="font-bold text-slate-700 dark:text-slate-200">99%</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="flex items-center gap-1 text-slate-500"><span class="material-icons-round text-[10px]">developer_board</span> 回路設計</span>
+<span class="font-bold text-slate-700 dark:text-slate-200">てんさい</span>
+</div>
+</div>
+<div class="mt-3 flex justify-between items-center text-[10px] text-slate-400 border-t border-slate-100 dark:border-slate-700 pt-2">
+<div class="flex gap-2">
+<span>⌨️ プログラミング</span>
+<span>🎨 アート</span>
+</div>
+<span>No.??? ★</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section class="mt-16">
+<div class="relative h-64 md:h-80 rounded-3xl overflow-hidden shadow-2xl group cursor-pointer">
+<div class="absolute inset-0 bg-gradient-to-r from-indigo-900 to-purple-900">
+<div class="absolute inset-0 opacity-30 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]"></div>
+</div>
+<div class="absolute inset-0 flex flex-col items-center justify-center text-center p-6 z-20">
+<h3 class="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-orange-300 to-yellow-300 drop-shadow-md mb-4">
+                        レアカードを集めよう！
+                    </h3>
+<p class="text-blue-100 text-lg font-bold mb-8 max-w-2xl">
+                        タイピング練習やプログラミングクエストをクリアして、伝説のカードをゲットしよう。
+                    </p>
+<button class="bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-black py-3 px-8 rounded-full shadow-lg hover:shadow-glow-gold hover:scale-105 transition-all duration-300 flex items-center gap-2">
+<span>冒険へ出発！</span>
+<span class="material-icons-round">arrow_forward</span>
+</button>
+</div>
+<div class="absolute top-10 left-10 w-32 h-48 bg-white/10 rounded-lg border border-white/20 transform rotate-[-15deg] blur-sm hover:blur-0 transition-all duration-500 hover:scale-110 z-10"></div>
+<div class="absolute bottom-[-20px] right-20 w-40 h-56 bg-gradient-to-br from-purple-500/30 to-blue-500/30 rounded-lg border border-white/30 transform rotate-[10deg] blur-sm hover:blur-0 transition-all duration-500 hover:scale-110 z-10"></div>
+<div class="absolute top-1/4 left-1/4 w-2 h-2 bg-white rounded-full animate-ping"></div>
+<div class="absolute bottom-1/3 right-1/3 w-3 h-3 bg-yellow-300 rounded-full animate-pulse"></div>
+</div>
+</section>
+</main>
+<footer class="mt-20 py-8 bg-white/50 dark:bg-slate-900/50 text-center">
+<p class="text-slate-400 text-sm font-bold">© 2026 KIDS GAME DASHBOARD</p>
+</footer>
+
+</body></html>

@@ -86,13 +86,10 @@ const motivationMessage = computed(() => {
 
 const motivationColor = computed(() => {
   const value = motivation.value;
-  if (value >= 70) {
-    return 'from-green-500 to-emerald-500';
-  } else if (value >= 40) {
-    return 'from-yellow-500 to-orange-500';
-  } else {
-    return 'from-red-500 to-pink-500';
+  if (value >= 40) {
+    return 'from-yellow-400 to-orange-500';
   }
+  return 'from-red-500 to-pink-500';
 });
 
 // ---------------------------------------------------------------------------
@@ -151,88 +148,122 @@ const handleNavigateToGacha = () => {
 
 <template>
   <div class="student-home-container">
-    <!-- アバターとやる気セクション -->
-    <div class="avatar-motivation-section mb-8">
-      <div class="avatar-container">
-        <div class="avatar-wrapper">
-          <img
-            :src="student.avatarUrl || placeholders.avatar('アバター')"
-            :alt="student.name"
-            class="avatar-image"
-            loading="lazy"
-          />
-          <div class="avatar-glow"></div>
+    <!-- アバターとやる気セクション（参照: 白カード + ぼかし円 + スレート文字） -->
+    <section class="avatar-motivation-section relative bg-white dark:bg-card-dark rounded-3xl p-8 shadow-soft dark:shadow-none border border-slate-100 dark:border-slate-700 overflow-hidden mb-8">
+      <div class="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-blue-100 dark:bg-blue-900/30 rounded-full blur-3xl opacity-50" aria-hidden="true"></div>
+      <div class="absolute bottom-0 left-0 -ml-16 -mb-16 w-64 h-64 bg-purple-100 dark:bg-purple-900/30 rounded-full blur-3xl opacity-50" aria-hidden="true"></div>
+      <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+        <div class="flex flex-col items-center text-center">
+          <div class="relative w-32 h-32 md:w-40 md:h-40 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 p-1 avatar-pulse">
+            <div class="w-full h-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden border-4 border-white dark:border-slate-800">
+              <img
+                :src="student.avatarUrl || placeholders.avatar('アバター')"
+                :alt="student.name"
+                class="w-full h-full object-cover"
+                loading="lazy"
+              />
+            </div>
+            <div class="absolute bottom-0 right-0 bg-accent text-white w-10 h-10 flex items-center justify-center rounded-full border-4 border-white dark:border-slate-800 font-bold shadow-lg">
+              {{ openedCards.length }}
+            </div>
+          </div>
+          <h2 class="mt-4 text-2xl font-black tracking-tight text-slate-800 dark:text-white">{{ student.name }}のダッシュボード</h2>
+          <span class="text-slate-500 dark:text-slate-400 text-sm font-bold">勇者レベル</span>
         </div>
-        <h2 class="student-name">{{ student.name }}のダッシュボード</h2>
+        <div class="flex-1 w-full md:max-w-xl">
+          <div class="flex justify-between items-end mb-2">
+            <span class="font-bold text-slate-600 dark:text-slate-300">きょうのやるき</span>
+            <span class="text-4xl font-black text-primary drop-shadow-sm">{{ displayedMotivationRounded }}%</span>
+          </div>
+          <div class="w-full h-6 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden shadow-inner p-1">
+            <div
+              class="h-full rounded-full relative overflow-hidden motivation-bar-inner"
+              :class="`bg-gradient-to-r ${motivationColor}`"
+              :style="{ width: `${displayedMotivation}%` }"
+            >
+              <div class="motivation-bar-shine-el" aria-hidden="true"></div>
+            </div>
+          </div>
+          <div class="mt-3 text-center">
+            <span class="inline-block px-4 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded-full text-sm font-bold border border-yellow-200 dark:border-yellow-800">
+              ✨ {{ motivationMessage }} ✨
+            </span>
+          </div>
+        </div>
       </div>
+    </section>
 
-      <div class="motivation-container">
-        <div class="motivation-header">
-          <span class="motivation-label">きょうのやるき</span>
-          <span class="motivation-value">{{ displayedMotivationRounded }}%</span>
-        </div>
-        <div class="motivation-bar-wrapper">
-          <div
-            class="motivation-bar"
-            :class="`bg-gradient-to-r ${motivationColor}`"
-            :style="{ width: `${displayedMotivation}%` }"
-          ></div>
-        </div>
-        <p class="motivation-message">{{ motivationMessage }}</p>
-      </div>
-    </div>
-
-    <!-- 未開封ガチャ権利の通知 -->
-    <div
+    <!-- 未開封ガチャ権利の通知（参照: CTA バナー風） -->
+    <section
       v-if="unopenedCards.length > 0"
-      class="gacha-notification mb-8"
+      class="gacha-cta-banner relative rounded-3xl overflow-hidden shadow-2xl cursor-pointer mb-8 mt-12"
       @click="handleNavigateToGacha"
     >
-      <div class="notification-content">
-        <div class="notification-icon">🎰</div>
-        <div class="notification-text">
-          <div class="notification-title">ガチャがまってるよ！</div>
-          <div class="notification-count">
-            あたらしいカードが{{ unopenedCards.length }}まいあるよ！
+      <div class="absolute inset-0 bg-gradient-to-br from-indigo-700 to-purple-800" aria-hidden="true"></div>
+      <div class="absolute inset-0 flex flex-col items-center justify-center text-center p-6 z-20">
+        <h3 class="text-3xl md:text-4xl font-black text-white drop-shadow-md mb-2">
+          ガチャがまってるよ！
+        </h3>
+        <p class="text-indigo-100 text-base md:text-lg font-bold mb-6 max-w-2xl">
+          あたらしいカードが{{ unopenedCards.length }}まいあるよ！
+        </p>
+        <span class="inline-flex items-center gap-2 bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-black py-3 px-6 rounded-full shadow-lg hover:shadow-glow-gold hover:scale-105 transition-all duration-300">
+          冒険へ出発！
+          <span aria-hidden="true">→</span>
+        </span>
+      </div>
+    </section>
+
+    <!-- 統計情報サマリー（参照: 中央見出し+横線、白カード・下ボーダー色） -->
+    <section class="stats-summary-section mb-8">
+      <div class="flex items-center justify-center mb-8 relative">
+        <h3 class="section-title-with-line text-3xl font-black text-slate-800 dark:text-white relative z-10 px-4 bg-background-light dark:bg-background-dark">
+          すうじでみるぼく・わたし
+        </h3>
+        <div class="absolute w-full h-1 bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent top-1/2" aria-hidden="true"></div>
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+        <div class="stat-card-ref bg-white dark:bg-card-dark p-6 rounded-2xl shadow-sm border-b-4 border-cyan-500 hover:-translate-y-1 transition-transform duration-300">
+          <div class="flex flex-col items-center">
+            <div class="w-14 h-14 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-500 rounded-2xl flex items-center justify-center mb-3 text-2xl" aria-hidden="true">📚</div>
+            <span class="text-sm font-bold text-slate-400">カード総数</span>
+            <span class="text-3xl font-black text-slate-800 dark:text-white mt-1">{{ openedCards.length }}</span>
           </div>
         </div>
-        <div class="notification-badge">{{ unopenedCards.length }}</div>
-      </div>
-    </div>
-
-    <!-- 統計情報サマリー -->
-    <div class="stats-summary-section mb-8">
-      <h3 class="section-title">すうじでみるぼく・わたし</h3>
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-icon">📚</div>
-          <div class="stat-label">カード総数</div>
-          <div class="stat-value">{{ openedCards.length }}</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon">⭐</div>
-          <div class="stat-label">さいこうレアリティ</div>
-          <div class="stat-value rarity-value" v-if="highestRarity">
-            {{ getRarityDisplayName(highestRarity) }}
+        <div class="stat-card-ref bg-white dark:bg-card-dark p-6 rounded-2xl shadow-sm border-b-4 border-accent hover:-translate-y-1 transition-transform duration-300">
+          <div class="flex flex-col items-center">
+            <div class="w-14 h-14 bg-yellow-100 dark:bg-yellow-900/30 text-accent rounded-2xl flex items-center justify-center mb-3 text-2xl" aria-hidden="true">⭐</div>
+            <span class="text-sm font-bold text-slate-400">さいこうレアリティ</span>
+            <span class="text-xl font-black text-primary mt-1" v-if="highestRarity">{{ getRarityDisplayName(highestRarity) }}</span>
+            <span class="text-3xl font-black text-slate-800 dark:text-white mt-1" v-else>-</span>
           </div>
-          <div class="stat-value" v-else>-</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon">⌨️</div>
-          <div class="stat-label">タイピングさいこうスコア</div>
-          <div class="stat-value">{{ typingStats.highestScore }}</div>
+        <div class="stat-card-ref bg-white dark:bg-card-dark p-6 rounded-2xl shadow-sm border-b-4 border-purple-500 hover:-translate-y-1 transition-transform duration-300">
+          <div class="flex flex-col items-center">
+            <div class="w-14 h-14 bg-purple-100 dark:bg-purple-900/30 text-purple-500 rounded-2xl flex items-center justify-center mb-3 text-2xl" aria-hidden="true">⌨️</div>
+            <span class="text-sm font-bold text-slate-400">タイピングさいこうスコア</span>
+            <span class="text-3xl font-black text-slate-800 dark:text-white mt-1">{{ typingStats.highestScore }}</span>
+          </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon">🧱</div>
-          <div class="stat-label">まいんくらふと作品</div>
-          <div class="stat-value">{{ minecraftStats.totalProjects }}</div>
+        <div class="stat-card-ref bg-white dark:bg-card-dark p-6 rounded-2xl shadow-sm border-b-4 border-orange-500 hover:-translate-y-1 transition-transform duration-300">
+          <div class="flex flex-col items-center">
+            <div class="w-14 h-14 bg-orange-100 dark:bg-orange-900/30 text-orange-500 rounded-2xl flex items-center justify-center mb-3 text-2xl" aria-hidden="true">🧱</div>
+            <span class="text-sm font-bold text-slate-400">まいんくらふと作品</span>
+            <span class="text-3xl font-black text-slate-800 dark:text-white mt-1">{{ minecraftStats.totalProjects }}</span>
+          </div>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- 最近のカード -->
+    <!-- 最近のカード（参照: 中央見出し＋キラキラアイコン） -->
     <div class="recent-cards-section">
-      <h3 class="section-title">さいきんのカード</h3>
+      <div class="flex items-center justify-center mb-10 relative">
+        <h3 class="text-3xl font-black text-slate-800 dark:text-white relative z-10 px-4 bg-background-light dark:bg-background-dark flex items-center gap-2">
+          <span class="text-accent" aria-hidden="true">✨</span>
+          さいきんのカード
+          <span class="text-accent" aria-hidden="true">✨</span>
+        </h3>
+      </div>
       <div v-if="latestCards.length > 0" class="recent-cards-grid">
         <div
           v-for="(card, index) in latestCards"
@@ -244,8 +275,8 @@ const handleNavigateToGacha = () => {
           <SsrCard :card="card" />
         </div>
       </div>
-      <div v-else class="no-cards-message">
-        <p>まだカードがありません</p>
+      <div v-else class="no-cards-message text-slate-600 dark:text-slate-300">
+        <p class="font-bold">まだカードがありません</p>
         <p class="sub-message">がんばってカードをあつめよう！</p>
       </div>
     </div>
@@ -261,215 +292,66 @@ const handleNavigateToGacha = () => {
 </template>
 
 <style scoped>
+/* 参照デザイン用 keyframes */
+@keyframes pulse-border {
+  0% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 15px rgba(99, 102, 241, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+  }
+}
+
+@keyframes shine {
+  0% {
+    left: -100%;
+  }
+  20% {
+    left: 200%;
+  }
+  100% {
+    left: 200%;
+  }
+}
+
+.avatar-pulse {
+  animation: pulse-border 2s infinite;
+}
+
+.motivation-bar-shine {
+  animation: shine 2s infinite;
+}
+
+.motivation-bar-inner {
+  position: relative;
+  transition: width 0.3s ease;
+}
+
+.motivation-bar-shine-el {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: skewX(-25deg);
+  animation: shine 2s infinite;
+}
+
 .student-home-container {
   width: 100%;
   max-width: 1400px;
   margin: 0 auto;
-  padding: 2rem;
-}
-
-/* アバターとやる気セクション */
-.avatar-motivation-section {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-  align-items: center;
-  padding: 2rem;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-  border-radius: 24px;
-  border: 2px solid rgba(102, 126, 234, 0.2);
-}
-
-@media (min-width: 768px) {
-  .avatar-motivation-section {
-    flex-direction: row;
-    justify-content: space-around;
-  }
-}
-
-.avatar-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-}
-
-.avatar-wrapper {
-  position: relative;
-  width: 150px;
-  height: 150px;
-}
-
-.avatar-image {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 4px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  position: relative;
-  z-index: 1;
-}
-
-.avatar-glow {
-  position: absolute;
-  inset: -10px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  opacity: 0.5;
-  filter: blur(20px);
-  animation: pulse-glow 2s ease-in-out infinite;
-}
-
-@keyframes pulse-glow {
-  0%, 100% {
-    opacity: 0.5;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.8;
-    transform: scale(1.1);
-  }
-}
-
-.student-name {
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: white;
-  text-align: center;
-}
-
-.motivation-container {
-  flex: 1;
-  max-width: 400px;
-  width: 100%;
-}
-
-.motivation-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-
-.motivation-label {
-  font-size: 1rem;
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.motivation-value {
-  font-size: 2rem;
-  font-weight: bold;
-  color: white;
-}
-
-.motivation-bar-wrapper {
-  width: 100%;
-  height: 24px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  overflow: hidden;
-  margin-bottom: 0.5rem;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-}
-
-.motivation-bar {
-  height: 100%;
-  border-radius: 12px;
-  transition: width 0.3s ease;
-  box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
-  animation: pulse-bar 2s ease-in-out infinite;
-}
-
-@keyframes pulse-bar {
-  0%, 100% {
-    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
-  }
-  50% {
-    box-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
-  }
-}
-
-.motivation-message {
-  font-size: 1.125rem;
-  color: white;
-  text-align: center;
-  font-weight: 500;
-}
-
-/* ガチャ通知 */
-.gacha-notification {
-  background: linear-gradient(135deg, #9333EA 0%, #EC4899 100%);
-  border-radius: 20px;
-  padding: 1.5rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 10px 30px rgba(147, 51, 234, 0.4);
-  animation: notification-pulse 2s ease-in-out infinite;
-}
-
-.gacha-notification:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 15px 40px rgba(147, 51, 234, 0.6);
-}
-
-@keyframes notification-pulse {
-  0%, 100% {
-    box-shadow: 0 10px 30px rgba(147, 51, 234, 0.4);
-  }
-  50% {
-    box-shadow: 0 10px 40px rgba(147, 51, 234, 0.6);
-  }
-}
-
-.notification-content {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-}
-
-.notification-icon {
-  font-size: 3rem;
-  animation: rotate-icon 3s linear infinite;
-}
-
-@keyframes rotate-icon {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.notification-text {
-  flex: 1;
-  color: white;
-}
-
-.notification-title {
-  font-size: 1.5rem;
-  font-weight: bold;
-  margin-bottom: 0.25rem;
-}
-
-.notification-count {
-  font-size: 1rem;
-  opacity: 0.9;
-}
-
-.notification-badge {
-  width: 3rem;
-  height: 3rem;
-  border-radius: 50%;
-  background: white;
-  color: #9333EA;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  font-weight: bold;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  padding-top: 2rem;
+  padding-bottom: 2rem;
 }
 
 /* 統計情報サマリー */
@@ -477,103 +359,15 @@ const handleNavigateToGacha = () => {
   margin-bottom: 2rem;
 }
 
-.section-title {
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: white;
-  margin-bottom: 1.25rem;
-  text-align: center;
-}
-
-@media (min-width: 640px) {
-  .section-title {
-    font-size: 1.75rem;
-    margin-bottom: 1.5rem;
-  }
-}
-
-@media (min-width: 1024px) {
-  .section-title {
-    font-size: 2rem;
-  }
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-}
-
-@media (min-width: 640px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1.25rem;
-  }
-}
-
-@media (min-width: 768px) {
-  .stats-grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1.5rem;
-  }
-}
-
-@media (min-width: 1024px) {
-  .stats-grid {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  }
-}
-
-.stat-card {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 16px;
-  padding: 1.5rem;
-  text-align: center;
-  border: 2px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.3s ease;
-  backdrop-filter: blur(10px);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .stat-card:hover {
-    transform: translateY(-4px);
-    border-color: rgba(102, 126, 234, 0.5);
-    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
-  }
-  
-  .recent-card-wrapper:hover {
-    transform: scale(1.05);
-  }
-}
-
-.stat-icon {
-  font-size: 2.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.stat-label {
-  font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.7);
-  margin-bottom: 0.5rem;
-}
-
-.stat-value {
-  font-size: 2rem;
-  font-weight: bold;
-  color: white;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.rarity-value {
-  font-size: 1.5rem;
-}
-
 /* 最近のカード */
 .recent-cards-section {
   margin-top: 2rem;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .recent-card-wrapper:hover {
+    transform: scale(1.05);
+  }
 }
 
 /* タブレット 1280x800 想定: 1列 → 2列 → 3列 */
@@ -625,7 +419,6 @@ const handleNavigateToGacha = () => {
 .no-cards-message {
   text-align: center;
   padding: 4rem 2rem;
-  color: rgba(255, 255, 255, 0.7);
 }
 
 .no-cards-message p {
@@ -633,36 +426,26 @@ const handleNavigateToGacha = () => {
   margin-bottom: 0.5rem;
 }
 
-.sub-message {
+.no-cards-message .sub-message {
   font-size: 1rem;
-  opacity: 0.8;
+  opacity: 0.9;
 }
 
-/* レスポンシブ対応: 追加の微調整 */
+/* レスポンシブ対応: 小画面でパディング縮小 */
 @media (max-width: 639.98px) {
   .student-home-container {
-    padding: 1rem;
-  }
-  
-  .stat-value {
-    font-size: 1.5rem;
-  }
-  
-  .stat-icon {
-    font-size: 2rem;
-  }
-  
-  .notification-title {
-    font-size: 1.25rem;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
   }
 }
 
 /* アクセシビリティ: アニメーションを好まないユーザー向け */
 @media (prefers-reduced-motion: reduce) {
   .avatar-glow,
+  .avatar-pulse,
   .motivation-bar,
-  .gacha-notification,
-  .notification-icon {
+  .motivation-bar-shine,
+  .motivation-bar-shine-el {
     animation: none;
   }
 

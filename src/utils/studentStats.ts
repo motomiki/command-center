@@ -35,7 +35,7 @@ const RARITY_ORDER: Record<Rarity, number> = {
 
 /**
  * やる気値を計算
- * タイピング記録の改善度、カード獲得数、最近の活動頻度から算出（0-100）
+ * タイピング記録の改善度、カード獲得数、過去30日間の活動頻度から算出（0-100）
  *
  * @param student 生徒データ
  * @param cards その生徒のカード一覧（外部から注入）
@@ -63,9 +63,10 @@ export function calculateMotivation(
   const openedCount = cards.filter((c) => c.isOpened).length;
   motivation += Math.min(openedCount * 2, 20);
 
-  // 最近の活動頻度を評価（最大20ポイント）
+  // 最近の活動頻度を評価（過去30日間・最大20ポイント）
+  // 週1回活動なら約4日 → 満点付近になるよう 1日あたり5pt
   const recentActivityDays = getRecentActivityDays(student);
-  motivation += Math.min(recentActivityDays * 4, 20);
+  motivation += Math.min(recentActivityDays * 5, 20);
 
   // 未開封カードがある場合はボーナス（最大10ポイント）
   const unopenedCount = cards.filter((c) => !c.isOpened).length;
@@ -76,22 +77,26 @@ export function calculateMotivation(
   return Math.min(Math.max(motivation, 0), 100);
 }
 
+/** 活動頻度の集計対象日数（週1回活動を想定して1ヶ月） */
+const ACTIVITY_DAYS_WINDOW = 30;
+
 /**
- * 最近の活動日数を取得（過去7日間）
+ * 最近の活動日数を取得（過去30日間）
+ * 週1回程度の活動でも適切に反映されるよう、7日より長い期間で集計する。
  * @param student 生徒データ
  * @returns 活動日数
  */
 function getRecentActivityDays(student: Student): number {
   const today = new Date();
-  const sevenDaysAgo = new Date(today);
-  sevenDaysAgo.setDate(today.getDate() - 7);
+  const windowStart = new Date(today);
+  windowStart.setDate(today.getDate() - ACTIVITY_DAYS_WINDOW);
 
   const activityDates = new Set<string>();
 
   // タイピング記録から活動日を取得
   student.typingHistory.forEach((record) => {
     const recordDate = new Date(record.date);
-    if (recordDate >= sevenDaysAgo) {
+    if (recordDate >= windowStart) {
       activityDates.add(record.date);
     }
   });
@@ -99,7 +104,7 @@ function getRecentActivityDays(student: Student): number {
   // Minecraft成果物から活動日を取得
   student.projects.forEach((project) => {
     const projectDate = new Date(project.createdAt);
-    if (projectDate >= sevenDaysAgo) {
+    if (projectDate >= windowStart) {
       activityDates.add(project.createdAt);
     }
   });

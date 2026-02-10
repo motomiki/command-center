@@ -47,6 +47,29 @@ export default {
   ],
   theme: {
     extend: {
+      colors: {
+        primary: '#6366f1',
+        secondary: '#ec4899',
+        accent: '#f59e0b',
+        'background-light': '#f0f9ff',
+        'background-dark': '#0f172a',
+        'card-light': '#ffffff',
+        'card-dark': '#1e293b',
+        'soft-blue': '#e0f2fe',
+        'soft-purple': '#f3e8ff',
+        'soft-green': '#dcfce7',
+        'soft-rose': '#ffe4e6',
+      },
+      borderRadius: {
+        DEFAULT: '1rem',
+        xl: '1.5rem',
+        '2xl': '2rem',
+      },
+      boxShadow: {
+        soft: '0 10px 40px -10px rgba(0,0,0,0.08)',
+        glow: '0 0 20px rgba(99, 102, 241, 0.5)',
+        'glow-gold': '0 0 25px rgba(245, 158, 11, 0.4)',
+      },
       animation: {
         'pulse-slow': 'pulse-glow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       },

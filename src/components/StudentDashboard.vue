@@ -138,7 +138,7 @@ const minecraftCards = computed(() => {
 </script>
 
 <template>
-  <div class="student-dashboard-container">
+  <div class="student-dashboard-container bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-100 transition-colors duration-300 min-h-screen">
     <!-- ナビゲーション -->
     <StudentNavigation
       :current-section="currentSection"
@@ -187,6 +187,7 @@ const minecraftCards = computed(() => {
         <!-- ガチャセクション -->
         <div v-else-if="currentSection === 'gacha'" key="gacha" class="section-content">
           <div class="gacha-section">
+            <div class="gacha-page-dot-bg" aria-hidden="true"></div>
             <div class="gacha-machine-wrapper">
               <GachaMachine
                 :unopened-cards="gachaTestCards"
@@ -241,7 +242,6 @@ const minecraftCards = computed(() => {
 <style scoped>
 .student-dashboard-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
 }
 
 /* タブレット 1280x800: 縦方向を有効活用しファーストビューでカードが見えるように */
@@ -320,13 +320,9 @@ const minecraftCards = computed(() => {
 .section-header {
   font-size: 1.75rem;
   font-weight: bold;
-  color: white;
+  color: #1e293b;
   text-align: center;
   margin-bottom: 1.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
 }
 
 @media (min-width: 640px) {
@@ -346,6 +342,27 @@ const minecraftCards = computed(() => {
 /* ガチャセクション */
 .gacha-section {
   width: 100%;
+  position: relative;
+}
+
+/* ガチャタブのみ: 画面全体の水玉背景（fixed でビューポート全体を覆う） */
+.gacha-page-dot-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.18;
+  background-image:
+    radial-gradient(#3B82F6 2px, transparent 2px),
+    radial-gradient(#F59E0B 2px, transparent 2px);
+  background-size: 30px 30px;
+  background-position: 0 0, 15px 15px;
+}
+
+.gacha-section .gacha-machine-wrapper,
+.gacha-section .section-hint {
+  position: relative;
+  z-index: 1;
 }
 
 .gacha-machine-wrapper {
@@ -356,7 +373,7 @@ const minecraftCards = computed(() => {
 .section-hint {
   margin-top: 2rem;
   text-align: center;
-  color: rgba(255, 255, 255, 0.7);
+  color: #475569;
   font-size: 0.875rem;
 }
 
@@ -406,7 +423,7 @@ const minecraftCards = computed(() => {
 .no-minecraft-message {
   text-align: center;
   padding: 4rem 2rem;
-  color: rgba(255, 255, 255, 0.7);
+  color: #475569;
 }
 
 .no-minecraft-message p {
@@ -459,14 +476,14 @@ const minecraftCards = computed(() => {
   align-items: center;
   justify-content: center;
   min-height: 50vh;
-  color: white;
+  color: #334155;
 }
 
 .loading-spinner {
   width: 50px;
   height: 50px;
-  border: 5px solid rgba(255, 255, 255, 0.1);
-  border-top-color: #667eea;
+  border: 5px solid #e2e8f0;
+  border-top-color: #6366f1;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 1rem;
@@ -483,23 +500,23 @@ const minecraftCards = computed(() => {
   justify-content: center;
   gap: 0.75rem;
   padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(37, 99, 235, 0.2) 100%);
-  border-bottom: 1px solid rgba(59, 130, 246, 0.3);
+  background: rgba(224, 242, 254, 0.95);
+  border-bottom: 1px solid #e2e8f0;
   backdrop-filter: blur(10px);
 }
 
 .sync-spinner {
   width: 18px;
   height: 18px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-top-color: #60a5fa;
+  border: 2px solid #e2e8f0;
+  border-top-color: #6366f1;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
 
 .sync-text {
   font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.9);
+  color: #1e293b;
 }
 
 .sync-fade-enter-active,
@@ -518,14 +535,14 @@ const minecraftCards = computed(() => {
   align-items: center;
   justify-content: center;
   padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(185, 28, 28, 0.2) 100%);
-  border-bottom: 1px solid rgba(239, 68, 68, 0.3);
+  background: #fef2f2;
+  border-bottom: 1px solid #fecaca;
   backdrop-filter: blur(10px);
 }
 
 .gacha-open-error-text {
   font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.95);
+  color: #991b1b;
 }
 </style>
 
