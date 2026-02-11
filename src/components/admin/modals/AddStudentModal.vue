@@ -18,19 +18,46 @@ const { addToast } = useToast();
 const { students } = useRepository();
 
 const name = ref('');
+const userUuid = ref('');
+const loginId = ref('');
 const avatarUrl = ref('');
 const isSaving = ref(false);
+
+/** UUID v4 形式の簡易チェック（8-4-4-4-12 の16進数） */
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isValidUuid(value: string): boolean {
+  return UUID_REGEX.test(value.trim());
+}
 
 const handleSave = async () => {
   if (!name.value) {
     addToast('名前を入力してください', undefined, 'error');
     return;
   }
+  if (!userUuid.value.trim()) {
+    addToast('User UUID を入力してください', undefined, 'error');
+    return;
+  }
+  if (!isValidUuid(userUuid.value)) {
+    addToast(
+      'User UUID の形式が正しくありません（Supabase の Authentication > Users でコピーした UUID を貼り付けてください）',
+      undefined,
+      'error',
+    );
+    return;
+  }
+  if (!loginId.value.trim()) {
+    addToast('ログインIDを入力してください', undefined, 'error');
+    return;
+  }
 
   isSaving.value = true;
   try {
     const newStudent: Student = {
-      id: `student-${Date.now()}`,
+      id: userUuid.value.trim(),
+      loginId: loginId.value.trim(),
       name: name.value,
       avatarUrl: avatarUrl.value || undefined,
       typingHistory: [],
@@ -50,6 +77,8 @@ const handleSave = async () => {
 
 const handleClose = () => {
   name.value = '';
+  userUuid.value = '';
+  loginId.value = '';
   avatarUrl.value = '';
   emit('close');
 };
@@ -75,6 +104,28 @@ const handleClose = () => {
           />
         </div>
 
+        <div class="form-section">
+          <label class="form-label">User UUID <span class="label-hint">（必須）</span></label>
+          <input
+            v-model="userUuid"
+            type="text"
+            placeholder="Supabase Authentication > Users で作成したユーザーの UUID を貼り付け"
+            class="form-input"
+            spellcheck="false"
+          />
+        </div>
+
+        <div class="form-section">
+          <label class="form-label">ログインID <span class="label-hint">（必須）</span></label>
+          <input
+            v-model="loginId"
+            type="text"
+            placeholder="例：student-6"
+            class="form-input"
+            spellcheck="false"
+          />
+        </div>
+
         <!-- アバター生成セクション -->
         <div class="form-section ai-section">
           <label class="form-label">アバター（AIで生成）</label>
@@ -89,7 +140,7 @@ const handleClose = () => {
         <button @click="handleClose" class="cancel-btn">キャンセル</button>
         <button
           @click="handleSave"
-          :disabled="isSaving || !name"
+          :disabled="isSaving || !name || !userUuid.trim() || !loginId.trim()"
           class="save-btn"
         >
           {{ isSaving ? '保存中...' : '生徒を保存' }}
@@ -172,6 +223,12 @@ const handleClose = () => {
   font-weight: 600;
   color: #475569;
   margin-bottom: 0.5rem;
+}
+
+.label-hint {
+  font-size: 0.75rem;
+  font-weight: normal;
+  color: #94a3b8;
 }
 
 .form-input, .form-select {

@@ -35,6 +35,7 @@ export class SupabaseStudentRepository implements IStudentRepository {
       avatar_url: student.avatarUrl ?? null,
       typing_history: student.typingHistory as unknown as Json,
       role: 'student' as const,
+      login_id: student.loginId ?? null,
       updated_at: new Date().toISOString(),
     });
 

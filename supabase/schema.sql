@@ -87,6 +87,11 @@ create policy "Users can update own profile"
   on profiles for update
   using ( auth.uid() = id );
 
+drop policy if exists "Teachers can insert profiles" on profiles;
+create policy "Teachers can insert profiles"
+  on profiles for insert
+  with check ( exists ( select 1 from profiles where id = auth.uid() and role = 'teacher' ) );
+
 -- ----- CARDS -----
 drop policy if exists "Cards are viewable by everyone" on cards;
 create policy "Cards are viewable by everyone"

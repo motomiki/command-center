@@ -6,7 +6,10 @@ import { useRepository } from '@/composables/useRepository';
 import { saveAsset, getAsset, getAssetUrl } from '@/utils/assetStore';
 import { uploadAsset } from '@/services/StorageService';
 import { useToast } from '@/composables/useToast';
-import { generateCardImage } from '@/services/CardGeneratorService';
+import {
+  generateCardImage,
+  type ArtStyleKey,
+} from '@/services/CardGeneratorService';
 import type { AIModelType } from '@/services/aiService';
 import type { Rarity, CardData } from '@/types/card';
 
@@ -41,12 +44,20 @@ const step = ref<StepType>('form');
 // AI生成用
 const apiKey = ref('');
 const modelType = ref<AIModelType>('flash');
-const aiPrompt = ref('');
+const artStyle = ref<ArtStyleKey>('fantasy');
 
 const rarities: Rarity[] = ['C', 'U', 'R', 'RR', 'SR', 'UR'];
 const modelOptions: { value: AIModelType; label: string }[] = [
   { value: 'flash', label: 'Gemini 2.5 Flash Image (Dev)' },
   { value: 'pro', label: 'Gemini 3 Pro Image (Prod)' },
+];
+
+const artStyleOptions: { value: ArtStyleKey; label: string; icon: string }[] = [
+  { value: 'fantasy', label: 'ファンタジー', icon: '🏰' },
+  { value: 'anime', label: 'アニメ', icon: '✨' },
+  { value: 'manga', label: '漫画', icon: '💬' },
+  { value: 'painting', label: '絵画', icon: '🎨' },
+  { value: 'pixel', label: 'ドット絵', icon: '👾' },
 ];
 
 // Draft Saving
@@ -82,8 +93,8 @@ const handleGenerateImage = async () => {
     addToast('APIキーを入力してください', 'Gemini API Key を入力してから画像を生成できます。', 'warning');
     return;
   }
-  if (!formData.value.title.trim() && !aiPrompt.value.trim()) {
-    addToast('カード名またはプロンプトを入力してください', 'AIで画像を生成するにはどちらかが必要です。', 'warning');
+  if (!formData.value.title.trim() && !formData.value.description.trim()) {
+    addToast('カード名かコメントを入力してください', 'AIで画像を生成するには、タイトルまたはコメントのどちらかが必要です。', 'warning');
     return;
   }
   isGeneratingImage.value = true;
@@ -91,10 +102,10 @@ const handleGenerateImage = async () => {
     localStorage.setItem(STORAGE_KEY_API_KEY, apiKey.value);
     const blob = await generateCardImage({
       apiKey: apiKey.value,
-      prompt: aiPrompt.value.trim() || formData.value.title.trim(),
       modelType: modelType.value,
       title: formData.value.title.trim() || 'カード',
-      description: formData.value.description,
+      description: formData.value.description?.trim() ?? '',
+      artStyle: artStyle.value,
       rarity: formData.value.rarity,
     });
     const assetId = await saveAsset(blob);
@@ -293,9 +304,23 @@ const handleFinalSubmit = async () => {
             />
           </div>
 
-          <!-- AI生成用: API Key / モデル / プロンプト -->
+          <div class="form-group">
+            <label for="card-description" class="form-label">コメント</label>
+            <textarea
+              id="card-description"
+              v-model="formData.description"
+              class="form-textarea"
+              rows="3"
+              placeholder="先生からのコメント..."
+            ></textarea>
+          </div>
+
+          <!-- AI生成用: API Key / モデル / 画風 -->
           <div class="ai-section">
             <h4 class="ai-section-title">🤖 AIで画像を生成</h4>
+            <p class="ai-section-desc">
+              カード名とコメントの内容から、AIがイラストのイメージを読み取って生成します。
+            </p>
             <div class="form-group">
               <label for="gemini-api-key" class="form-label">Gemini API Key</label>
               <input
@@ -320,14 +345,19 @@ const handleFinalSubmit = async () => {
               </select>
             </div>
             <div class="form-group">
-              <label for="ai-prompt" class="form-label">プロンプト（任意・カード名で代用可）</label>
-              <input
-                id="ai-prompt"
-                v-model="aiPrompt"
-                type="text"
-                class="form-input"
-                placeholder="例: 炎に包まれた剣が光るファンタジー"
-              />
+              <span class="form-label">絵のタッチ（画風）</span>
+              <div class="art-style-selector">
+                <button
+                  v-for="opt in artStyleOptions"
+                  :key="opt.value"
+                  type="button"
+                  :class="['art-style-button', { active: artStyle === opt.value }]"
+                  @click="artStyle = opt.value"
+                >
+                  <span class="art-style-icon">{{ opt.icon }}</span>
+                  <span class="art-style-label">{{ opt.label }}</span>
+                </button>
+              </div>
             </div>
             <button
               type="button"
@@ -372,17 +402,6 @@ const handleFinalSubmit = async () => {
                 {{ rarity }}
               </button>
             </div>
-          </div>
-          
-          <div class="form-group">
-            <label for="card-description" class="form-label">コメント</label>
-            <textarea
-              id="card-description"
-              v-model="formData.description"
-              class="form-textarea"
-              rows="3"
-              placeholder="先生からのコメント..."
-            ></textarea>
           </div>
 
           <button
@@ -547,6 +566,60 @@ const handleFinalSubmit = async () => {
   font-weight: 600;
   color: #0369a1;
   margin: 0 0 0.25rem 0;
+}
+
+.ai-section-desc {
+  font-size: 0.8125rem;
+  color: #0c4a6e;
+  margin: 0 0 0.5rem 0;
+  line-height: 1.4;
+}
+
+.art-style-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.art-style-button {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 72px;
+  padding: 0.625rem 0.5rem;
+  border: 2px solid #bae6fd;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #0369a1;
+  transition: all 0.2s ease;
+}
+
+.art-style-button:hover {
+  border-color: #7dd3fc;
+  background: rgba(255, 255, 255, 1);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(2, 132, 199, 0.15);
+}
+
+.art-style-button.active {
+  border-color: #0ea5e9;
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+  color: #0369a1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(14, 165, 233, 0.25);
+}
+
+.art-style-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.art-style-label {
+  line-height: 1.2;
 }
 
 .ai-generate-btn {
