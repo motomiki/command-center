@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import type { Student } from '@/types/student';
 import type { CardData } from '@/types/card';
+import type { GachaState } from '@/types/gacha';
 import StudentNavigation, { type DashboardSection } from './StudentNavigation.vue';
 import StudentHome from './StudentHome.vue';
 import GachaMachine from './GachaMachine.vue';
@@ -94,6 +95,12 @@ const handleNavigateToGacha = () => {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
+/** ガチャの内部状態（GachaMachine から通知）。ヒントは idle のときだけ表示 */
+const gachaState = ref<GachaState>('idle');
+const handleGachaStateChange = (state: GachaState) => {
+  gachaState.value = state;
+};
+
 // ガチャ用の未開封カード
 const gachaTestCards = computed(() =>
   studentCards.value.filter((c) => !c.isOpened)
@@ -180,6 +187,7 @@ const minecraftCards = computed(() => {
         <div v-if="currentSection === 'home'" key="home" class="section-content">
           <StudentHome
             :student="student"
+            :unopened-count="gachaTestCards.length"
             :on-navigate-to-gacha="handleNavigateToGacha"
           />
         </div>
@@ -193,9 +201,10 @@ const minecraftCards = computed(() => {
                 :unopened-cards="gachaTestCards"
                 @card-opened="handleCardOpened"
                 @gacha-complete="handleGachaComplete"
+                @gacha-state-change="handleGachaStateChange"
               />
             </div>
-            <div class="section-hint">
+            <div v-if="gachaState === 'idle'" class="section-hint">
               <p>💡 レバーを回してガチャを回そう！レアリティによって演出が変わるよ！</p>
               <p class="mt-2">キーボード: Enterキーでガチャ実行</p>
             </div>

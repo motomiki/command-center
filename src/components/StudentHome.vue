@@ -16,6 +16,8 @@ import { placeholders } from '@/utils/placeholder';
 
 interface Props {
   student: Student;
+  /** 親から渡された未開封枚数（ナビバッジと一致させる用）。未指定時は unopenedCards.length を使用 */
+  unopenedCount?: number;
   onNavigateToGacha?: () => void;
 }
 
@@ -193,24 +195,35 @@ const handleNavigateToGacha = () => {
       </div>
     </section>
 
-    <!-- 未開封ガチャ権利の通知（参照: CTA バナー風） -->
+    <!-- 未開封ガチャ権利の通知（参照: Dashboard-home.html 横並びカード＋グロー＋数字バッジ） -->
     <section
-      v-if="unopenedCards.length > 0"
-      class="gacha-cta-banner relative rounded-3xl overflow-hidden shadow-2xl cursor-pointer mb-8 mt-12"
+      v-if="(unopenedCount ?? unopenedCards.length) > 0"
+      class="gacha-cta-banner mb-8 mt-12"
       @click="handleNavigateToGacha"
     >
-      <div class="absolute inset-0 bg-gradient-to-br from-indigo-700 to-purple-800" aria-hidden="true"></div>
-      <div class="absolute inset-0 flex flex-col items-center justify-center text-center p-6 z-20">
-        <h3 class="text-3xl md:text-4xl font-black text-white drop-shadow-md mb-2">
-          ガチャがまってるよ！
-        </h3>
-        <p class="text-indigo-100 text-base md:text-lg font-bold mb-6 max-w-2xl">
-          あたらしいカードが{{ unopenedCards.length }}まいあるよ！
-        </p>
-        <span class="inline-flex items-center gap-2 bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-black py-3 px-6 rounded-full shadow-lg hover:shadow-glow-gold hover:scale-105 transition-all duration-300">
-          冒険へ出発！
-          <span aria-hidden="true">→</span>
-        </span>
+      <div class="group relative cursor-pointer transform transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]">
+        <div class="absolute -inset-1 bg-gradient-to-r from-secondary to-orange-400 rounded-3xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200" aria-hidden="true"></div>
+        <div class="relative flex items-center justify-between bg-gradient-to-r from-secondary to-orange-400 rounded-3xl p-5 md:p-6 shadow-glow-pink">
+          <div class="flex items-center gap-4 md:gap-6">
+            <div class="w-16 h-16 md:w-20 md:h-20 bg-white/20 rounded-2xl flex items-center justify-center text-white backdrop-blur-sm border border-white/30">
+              <span class="material-symbols-outlined text-4xl md:text-5xl">casino</span>
+            </div>
+            <div>
+              <h3 class="text-xl md:text-3xl font-black text-white tracking-wider drop-shadow-sm">
+                ガチャがまってるよ！
+              </h3>
+              <p class="text-sm md:text-base font-bold text-white/90 mt-1">
+                あたらしいカードが{{ unopenedCount ?? unopenedCards.length }}まいあるよ！
+              </p>
+            </div>
+          </div>
+          <div class="relative">
+            <div class="w-12 h-12 md:w-16 md:h-16 bg-white rounded-full flex items-center justify-center text-secondary font-black text-2xl md:text-3xl shadow-xl transform rotate-12">
+              {{ unopenedCount ?? unopenedCards.length }}
+            </div>
+            <div class="gacha-banner-ping absolute -top-1 -right-1 w-4 h-4 bg-yellow-300 rounded-full animate-ping" aria-hidden="true"></div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -452,6 +465,10 @@ const handleNavigateToGacha = () => {
   .recent-card-wrapper {
     animation: none;
     opacity: 1;
+  }
+
+  .gacha-banner-ping {
+    animation: none;
   }
 }
 </style>

@@ -3,6 +3,7 @@ import type { Json } from '@/types/supabase';
 import type { ICardRepository } from '../interfaces';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { getCachedCards, setCachedCards } from '@/services/LocalCache';
+import { resolveStudentIdToUuid } from '@/utils/studentId';
 
 /** カード保存のタイムアウト（ミリ秒） */
 const SAVE_TIMEOUT_MS = 20_000;
@@ -53,9 +54,11 @@ export class SupabaseCardRepository implements ICardRepository {
         minecraftData: card.minecraftData ?? null,
       } as unknown as Json;
 
+      const studentUuid = await resolveStudentIdToUuid(card.studentId);
+
       const { error } = await supabase.from('cards').upsert({
         id: card.id,
-        student_id: card.studentId,
+        student_id: studentUuid,
         title: card.title,
         description: card.description,
         image_path: card.imageUrl ?? '',
@@ -70,13 +73,14 @@ export class SupabaseCardRepository implements ICardRepository {
         throw new Error(`カードの保存に失敗しました: ${error.message}`);
       }
 
-      // ローカルキャッシュも更新
+      // ローカルキャッシュも更新（studentId を UUID に正規化して一覧の照合と一致させる）
+      const cardToCache: CardData = { ...card, studentId: studentUuid };
       const cards = await getCachedCards();
       const index = cards.findIndex((c) => c.id === card.id);
       if (index >= 0) {
-        cards[index] = card;
+        cards[index] = cardToCache;
       } else {
-        cards.push(card);
+        cards.push(cardToCache);
       }
       await setCachedCards(cards);
     };

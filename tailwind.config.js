@@ -69,6 +69,7 @@ export default {
         soft: '0 10px 40px -10px rgba(0,0,0,0.08)',
         glow: '0 0 20px rgba(99, 102, 241, 0.5)',
         'glow-gold': '0 0 25px rgba(245, 158, 11, 0.4)',
+        'glow-pink': '0 0 25px rgba(236, 72, 153, 0.5)',
       },
       animation: {
         'pulse-slow': 'pulse-glow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',

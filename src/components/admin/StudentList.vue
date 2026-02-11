@@ -39,14 +39,18 @@ const filteredStudents = computed(() => {
   );
 });
 
+// 生徒に紐づくカードかどうか（id / loginId の両方で照合し、既存キャッシュの loginId 混在にも対応）
+const isCardForStudent = (c: CardData, student: Student): boolean =>
+  c.studentId === student.id || c.studentId === student.loginId;
+
 // 生徒のカード数を取得
-const getCardCount = (studentId: string): number => {
-  return allCards.value.filter((c) => c.studentId === studentId).length;
+const getCardCount = (student: Student): number => {
+  return allCards.value.filter((c) => isCardForStudent(c, student)).length;
 };
 
 // 最新の活動日を取得
 const getLatestActivityDate = (student: Student): string => {
-  const cards = allCards.value.filter((c) => c.studentId === student.id);
+  const cards = allCards.value.filter((c) => isCardForStudent(c, student));
   if (cards.length === 0) return 'なし';
 
   const dates = cards.map((card) => card.date).sort().reverse();
@@ -129,7 +133,7 @@ const showAddModal = ref(false);
           <div class="student-stats">
             <div class="stat-item">
               <span class="stat-label">カード数</span>
-              <span class="stat-value">{{ getCardCount(student.id) }}枚</span>
+              <span class="stat-value">{{ getCardCount(student) }}枚</span>
             </div>
             <div class="stat-item">
               <span class="stat-label">最新活動</span>

@@ -6,7 +6,6 @@ import type { GachaState } from '@/types/gacha';
 import SsrCard from './SsrCard.vue';
 import GachaScene from './GachaScene.vue';
 import { getRarityDisplayName } from '@/utils/rarity';
-import { placeholders } from '@/utils/placeholder';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -26,6 +25,7 @@ const props = defineProps<Props>();
 const emit = defineEmits<{
   'card-opened': [card: CardData];
   'gacha-complete': [card: CardData];
+  'gacha-state-change': [state: GachaState];
 }>();
 
 // ---------------------------------------------------------------------------
@@ -41,6 +41,15 @@ const knobRotation = ref(0);
 
 /** 未開封カードリストから選択されているカードID（unopenedCards 使用時） */
 const selectedCardId = ref<string | null>(null);
+
+// ガチャ状態が変わったら親に通知（ヒントの表示/非表示に利用）
+watch(
+  gachaState,
+  (state) => {
+    emit('gacha-state-change', state);
+  },
+  { immediate: true }
+);
 
 // unopenedCards が変わったら選択を先頭に合わせる
 watch(
@@ -302,18 +311,6 @@ const fireConfettiOnOpened = (rarity: Rarity) => {
 // ---------------------------------------------------------------------------
 // Rarity visual helpers
 // ---------------------------------------------------------------------------
-const getRarityGlowStyle = (rarity: Rarity) => {
-  const glows: Record<Rarity, string> = {
-    UR: '0 0 70px 30px rgba(147,51,234,0.9), 0 0 120px 50px rgba(236,72,153,0.5)',
-    SR: '0 0 50px 20px rgba(255,140,0,0.8), 0 0 80px 35px rgba(255,140,0,0.4)',
-    RR: '0 0 40px 15px rgba(0,102,255,0.7), 0 0 60px 30px rgba(0,102,255,0.3)',
-    R: '0 0 35px 12px rgba(0,170,0,0.6), 0 0 50px 25px rgba(0,170,0,0.3)',
-    U: '0 0 25px 10px rgba(234,179,8,0.5), 0 0 40px 20px rgba(234,179,8,0.2)',
-    C: '0 0 20px 8px rgba(128,128,128,0.4), 0 0 30px 15px rgba(128,128,128,0.2)',
-  };
-  return glows[rarity];
-};
-
 const getShakeIntensity = (rarity: Rarity): string => {
   const intensities: Record<Rarity, string> = {
     UR: 'shake-intense',
@@ -327,11 +324,35 @@ const getShakeIntensity = (rarity: Rarity): string => {
 };
 
 // ---------------------------------------------------------------------------
+// Cosmic reveal overlay (stars for v-for)
+// ---------------------------------------------------------------------------
+const COSMIC_STARS = Array.from({ length: 50 }, () => ({
+  left: Math.random() * 100,
+  top: Math.random() * 100,
+  size: Math.random() * 2 + 1,
+  delay: Math.random() * 3,
+}));
+
+/** Tap to reveal: skip wait and go to opened state */
+const revealEarly = () => {
+  if (gachaState.value !== 'revealing' || !currentCard.value) return;
+  if (revealTimeoutId.value !== null) {
+    clearTimeout(revealTimeoutId.value);
+    revealTimeoutId.value = null;
+  }
+  gachaState.value = 'opened';
+  fireConfettiOnOpened(currentCard.value.rarity ?? 'C');
+  emit('card-opened', currentCard.value);
+  emit('gacha-complete', currentCard.value);
+};
+
+// ---------------------------------------------------------------------------
 // Keyboard
 // ---------------------------------------------------------------------------
 const handleKeyPress = (e: KeyboardEvent) => {
   if (e.key === 'Enter' && canSpin.value) spinGacha();
   else if (e.key === 'Escape' && gachaState.value === 'opened') resetGacha();
+  else if ((e.key === 'Enter' || e.key === ' ') && gachaState.value === 'revealing') revealEarly();
 };
 
 onMounted(() => window.addEventListener('keydown', handleKeyPress));
@@ -552,28 +573,65 @@ onUnmounted(() => {
       <!-- Three.js scene (behind machine) -->
       <GachaScene :isActive="isSceneActive" :rarity="currentCard?.rarity" />
 
-      <!-- Revealing card preview (floating overlay) -->
-      <Transition name="card-pop">
-        <div v-if="gachaState === 'revealing' && currentCard" class="card-reveal-preview">
-          <div
-            class="card-preview"
-            :data-rarity="currentCard.rarity || 'C'"
-            :style="{ boxShadow: getRarityGlowStyle(currentCard.rarity || 'C') }"
-          >
-            <div class="card-preview-glow"></div>
-            <img
-              :src="currentCard.imageUrl"
-              :alt="currentCard.title"
-              class="card-preview-image"
-              loading="lazy"
-              @error="(e) => { (e.target as HTMLImageElement).src = placeholders.cardU('Card'); }"
-            />
-            <div class="card-preview-rarity">
-              {{ getRarityDisplayName(currentCard.rarity || 'C') }} ゲット!!
-            </div>
-          </div>
+      <!-- Cosmic reveal overlay (revealing only): nebula, stars, mystery card, tap to reveal -->
+      <div v-if="gachaState === 'revealing'" class="cosmic-reveal-overlay" aria-hidden="false">
+        <div class="cosmic-bg-nebula" aria-hidden="true" />
+        <div
+          v-for="(star, i) in COSMIC_STARS"
+          :key="'star-' + i"
+          class="cosmic-star"
+          :style="{
+            left: star.left + 'vw',
+            top: star.top + 'vh',
+            width: star.size + 'px',
+            height: star.size + 'px',
+            animationDelay: star.delay + 's',
+          }"
+          aria-hidden="true"
+        />
+        <div class="cosmic-conic-wrap" aria-hidden="true">
+          <div class="cosmic-conic-inner" />
         </div>
-      </Transition>
+        <main class="cosmic-main">
+          <div
+            class="cosmic-card-container"
+            role="button"
+            tabindex="0"
+            aria-label="タップでカードをひらく"
+            @click="revealEarly"
+            @keydown.enter="revealEarly"
+            @keydown.space.prevent="revealEarly"
+          >
+            <div class="cosmic-card-glow" aria-hidden="true" />
+            <div class="mystical-card">
+              <div class="runes-ring runes-ring-dashed" aria-hidden="true" />
+              <div class="runes-ring runes-ring-dotted" aria-hidden="true" />
+              <div class="light-core" aria-hidden="true" />
+              <div class="cosmic-ping-dots" aria-hidden="true">
+                <span class="cosmic-ping cosmic-ping-1" />
+                <span class="cosmic-ping cosmic-ping-2" />
+                <span class="cosmic-ping cosmic-ping-3" />
+              </div>
+              <span class="cosmic-question" aria-hidden="true">?</span>
+              <div class="cosmic-card-hover" aria-hidden="true" />
+            </div>
+            <span class="cosmic-deco cosmic-deco-tl" aria-hidden="true">✨</span>
+            <span class="cosmic-deco cosmic-deco-tr" aria-hidden="true">✦</span>
+            <span class="cosmic-deco cosmic-deco-b" aria-hidden="true">★</span>
+          </div>
+          <div
+            class="cosmic-text"
+            role="button"
+            tabindex="0"
+            aria-label="タップでカードをひらく"
+            @click="revealEarly"
+            @keydown.enter="revealEarly"
+            @keydown.space.prevent="revealEarly"
+          >
+            <h1 class="cosmic-title">なにがでるかな？</h1>
+          </div>
+        </main>
+      </div>
     </div>
 
     <!-- ===== Opened state (full-screen SsrCard overlay) ===== -->
@@ -1453,93 +1511,267 @@ onUnmounted(() => {
 }
 
 /* ========================================================================
-   CARD REVEAL PREVIEW (floating overlay during "revealing")
+   COSMIC REVEAL OVERLAY (revealing: nebula, stars, mystery card, tap to reveal)
    ======================================================================== */
-.card-reveal-preview {
+@keyframes cosmic-twinkle {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%      { opacity: 1; transform: scale(1.2); }
+}
+@keyframes cosmic-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-20px) rotate(2deg); }
+}
+@keyframes cosmic-pulse-glow {
+  0%, 100% { box-shadow: 0 0 30px 10px rgba(139, 92, 246, 0.4); }
+  50%      { box-shadow: 0 0 50px 20px rgba(139, 92, 246, 0.7); }
+}
+@keyframes cosmic-spin-slow {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to   { transform: translate(-50%, -50%) rotate(360deg); }
+}
+@keyframes cosmic-light-pulse {
+  0%, 100% { opacity: 0.8; transform: translate(-50%, -50%) scale(1); }
+  50%      { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+}
+
+.cosmic-reveal-overlay {
   position: fixed;
+  inset: 0;
+  z-index: 600;
+  overflow: hidden;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.cosmic-reveal-overlay .cosmic-card-container,
+.cosmic-reveal-overlay .cosmic-text {
+  pointer-events: auto;
+}
+.cosmic-reveal-overlay .cosmic-text {
+  cursor: pointer;
+}
+
+.cosmic-bg-nebula {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(124, 58, 237, 0.4) 0%, transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(236, 72, 153, 0.3) 0%, transparent 40%),
+    radial-gradient(circle at 50% 50%, rgba(76, 29, 149, 0.8) 0%, #0f172a 100%);
+  background-size: cover;
+  background-position: center;
+  z-index: 0;
+}
+
+.cosmic-star {
+  position: absolute;
+  background: #fff;
+  border-radius: 50%;
+  animation: cosmic-twinkle 3s ease-in-out infinite;
+  z-index: 1;
+}
+
+.cosmic-conic-wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0.3;
+}
+.cosmic-conic-inner {
+  position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 1000;
+  width: 200vmax;
+  height: 200vmax;
+  background: conic-gradient(from 0deg, transparent 0deg, rgba(255,255,255,0.1) 15deg, transparent 30deg, rgba(255,255,255,0.1) 45deg, transparent 60deg);
+  animation: cosmic-spin-slow 60s linear infinite;
 }
 
-/* Vue transition */
-.card-pop-enter-active {
-  animation: card-pop-in 0.5s ease-out;
-}
-.card-pop-leave-active {
-  animation: card-pop-in 0.3s ease-in reverse;
-}
-
-@keyframes card-pop-in {
-  0% {
-    transform: translate(-50%, 100%);
-    opacity: 0;
-  }
-  100% {
-    transform: translate(-50%, -50%);
-    opacity: 1;
-  }
-}
-
-.card-preview {
+.cosmic-main {
   position: relative;
-  width: 260px;
-  height: 390px;
-  border-radius: 1rem;
-  overflow: hidden;
-  animation: card-scale-in 0.5s ease-out;
+  z-index: 20;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding-top: 2rem;
+}
+
+.cosmic-card-container {
+  position: relative;
+  width: 16rem;
+  height: 24rem;
+  perspective: 1000px;
+  cursor: pointer;
+  outline: none;
 }
 @media (min-width: 640px) {
-  .card-preview {
-    width: 280px;
-    height: 420px;
+  .cosmic-card-container {
+    width: 20rem;
+    height: 28rem;
   }
 }
 
-@keyframes card-scale-in {
-  0%   { transform: scale(0.5); opacity: 0; }
-  100% { transform: scale(1);   opacity: 1; }
-}
-
-.card-preview-glow {
+.cosmic-card-glow {
   position: absolute;
-  inset: -20px;
-  border-radius: 1rem;
-  z-index: -1;
-  animation: glow-pulse 1s ease-in-out infinite;
+  inset: -1rem;
+  background: linear-gradient(135deg, #ec4899, #9333ea, #2563eb);
+  border-radius: 1.5rem;
+  opacity: 0.6;
+  filter: blur(1.5rem);
+  animation: cosmic-pulse-glow 3s ease-in-out infinite;
 }
 
-.card-preview-image {
+.mystical-card {
+  position: relative;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  background: transparent;
+  border-radius: 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: cosmic-float 6s ease-in-out infinite, cosmic-pulse-glow 3s ease-in-out infinite;
+  backdrop-filter: blur(4px);
 }
 
-.card-preview-rarity {
+.runes-ring {
   position: absolute;
-  bottom: 0; left: 0; right: 0;
-  padding: 1rem;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+  top: 50%;
+  left: 50%;
+  width: 140%;
+  height: 140%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  animation: cosmic-spin-slow 20s linear infinite;
+  pointer-events: none;
+}
+.runes-ring-dashed {
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+}
+.runes-ring-dotted {
+  width: 120%;
+  height: 120%;
+  border: 2px dotted rgba(236, 72, 153, 0.3);
+  animation-direction: reverse;
+  animation-duration: 25s;
+}
+
+.light-core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100px;
+  height: 100px;
+  background: radial-gradient(circle, rgba(255,255,255,1) 0%, rgba(139,92,246,0.8) 40%, transparent 70%);
+  filter: blur(20px);
+  animation: cosmic-light-pulse 1s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+.cosmic-ping-dots {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 1rem;
+  pointer-events: none;
+}
+.cosmic-ping {
+  position: absolute;
+  background: #fff;
+  border-radius: 50%;
+  animation: ping-dot 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+  opacity: 0.75;
+}
+.cosmic-ping-1 { top: 25%; left: 25%; width: 0.5rem; height: 0.5rem; }
+.cosmic-ping-2 { bottom: 33%; right: 25%; width: 0.25rem; height: 0.25rem; animation-delay: 75ms; }
+.cosmic-ping-3 { top: 66%; left: 50%; width: 0.375rem; height: 0.375rem; margin-left: -0.1875rem; animation-delay: 150ms; }
+@keyframes ping-dot {
+  75%, 100% { transform: scale(2); opacity: 0; }
+}
+
+.cosmic-question {
+  position: relative;
+  z-index: 10;
+  font-size: 6rem;
+  font-weight: 900;
+  line-height: 1;
   color: #fff;
-  font-size: 1.35rem;
-  font-weight: 800;
+  text-shadow: 0 0 15px rgba(255, 255, 255, 0.8), 0 0 30px rgba(139, 92, 246, 0.6);
+  animation: cosmic-bounce 1s ease-in-out infinite;
+  font-family: 'Fredoka', 'Rounded Mplus 1c', sans-serif;
+}
+@media (min-width: 640px) {
+  .cosmic-question {
+    font-size: 8rem;
+  }
+}
+@keyframes cosmic-bounce {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-12px); }
+}
+
+.cosmic-card-hover {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.2), transparent);
+  opacity: 0;
+  border-radius: 1rem;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+.cosmic-card-container:hover .cosmic-card-hover {
+  opacity: 1;
+}
+
+.cosmic-deco {
+  position: absolute;
+  font-size: 1.5rem;
+  pointer-events: none;
+  z-index: 5;
+}
+.cosmic-deco-tl { top: -2.5rem; left: -2.5rem; animation: cosmic-bounce 1s ease-in-out infinite; animation-delay: 100ms; color: #fde047; }
+.cosmic-deco-tr { top: 50%; right: -3rem; transform: translateY(-50%); font-size: 1.25rem; animation: cosmic-pulse 2s ease-in-out infinite; animation-delay: 300ms; color: #93c5fd; }
+.cosmic-deco-b { bottom: -2rem; left: 50%; transform: translateX(-50%); animation: cosmic-bounce 1s ease-in-out infinite; animation-delay: 700ms; color: #f9a8d4; }
+@keyframes cosmic-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.6; }
+}
+
+.cosmic-text {
+  position: relative;
+  z-index: 20;
+  margin-top: 3rem;
   text-align: center;
-  text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
 }
 
-@keyframes glow-pulse {
-  0%, 100% { opacity: 0.5; }
-  50%      { opacity: 1;   }
+.cosmic-title {
+  font-size: 1.875rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  background: linear-gradient(90deg, #f9a8d4, #fff, #93c5fd);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  animation: cosmic-pulse 2s ease-in-out infinite;
+  margin: 0;
+  font-family: inherit;
 }
-
-/* Rarity glow colours */
-[data-rarity="UR"] .card-preview-glow { background: radial-gradient(circle, rgba(147,51,234,0.7), transparent 70%); }
-[data-rarity="SR"] .card-preview-glow { background: radial-gradient(circle, rgba(255,140,0,0.5), transparent 70%); }
-[data-rarity="RR"] .card-preview-glow { background: radial-gradient(circle, rgba(0,102,255,0.4), transparent 70%); }
-[data-rarity="R"]  .card-preview-glow { background: radial-gradient(circle, rgba(0,170,0,0.3), transparent 70%); }
-[data-rarity="U"]  .card-preview-glow { background: radial-gradient(circle, rgba(234,179,8,0.35), transparent 70%); }
-[data-rarity="C"]  .card-preview-glow { background: radial-gradient(circle, rgba(128,128,128,0.2), transparent 70%); }
+@media (min-width: 640px) {
+  .cosmic-title {
+    font-size: 3rem;
+  }
+}
 
 /* ========================================================================
    OPENED STATE (full-screen overlay with SsrCard)
@@ -1557,8 +1789,10 @@ onUnmounted(() => {
 .card-reveal-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(10px);
+  background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.6)), url('/images/card-bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1640,8 +1874,17 @@ onUnmounted(() => {
   .reveal-icon,
   .reveal-flash,
   .output-light,
-  .card-reveal-preview,
-  .card-reveal-content {
+  .card-reveal-content,
+  .cosmic-star,
+  .cosmic-conic-inner,
+  .cosmic-card-glow,
+  .mystical-card,
+  .runes-ring,
+  .light-core,
+  .cosmic-ping,
+  .cosmic-question,
+  .cosmic-deco,
+  .cosmic-title {
     animation: none !important;
   }
 }

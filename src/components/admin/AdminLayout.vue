@@ -22,7 +22,7 @@ const handleLogout = async () => {
       <div class="header-content">
         <div class="header-left">
           <h1 class="admin-title">📊 管理画面</h1>
-          <p class="admin-subtitle">Nano Banaan Dashboard</p>
+          <p class="admin-subtitle">Campus Club Dashboard</p>
         </div>
         <div class="header-right">
           <RouterLink

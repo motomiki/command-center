@@ -4,6 +4,7 @@ import {
   getCachedMinecraftWorks,
   setCachedMinecraftWorks,
 } from '@/services/LocalCache';
+import { resolveStudentIdToUuid } from '@/utils/studentId';
 
 /**
  * Supabase / LocalCache を使った IMinecraftWorkRepository 実装。
@@ -26,9 +27,11 @@ export class SupabaseMinecraftWorkRepository
       );
     }
 
+    const studentUuid = await resolveStudentIdToUuid(work.studentId);
+
     const { error } = await supabase.from('minecraft_works').upsert({
       id: work.id,
-      student_id: work.studentId,
+      student_id: studentUuid,
       title: work.title,
       description: work.description,
       model_path: work.modelUrl ?? null,
