@@ -212,7 +212,7 @@ const handleBackToConfirm = () => {
 const executeSave = async () => {
   isSubmitting.value = true;
   try {
-    const workId = `work-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const workId = crypto.randomUUID();
 
     // ファイルを Storage にアップロード（Supabase 設定時）または idb:// URL を使用
     const finalModelUrl = await resolveAssetForSave(
@@ -242,7 +242,7 @@ const executeSave = async () => {
 
     // cardFormData のカスタマイズ値を使用してカードを作成
     await cards.save({
-      id: `card-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: crypto.randomUUID(),
       studentId: props.studentId,
       date: formData.value.createdAt,
       title: cardFormData.value.title.trim(),

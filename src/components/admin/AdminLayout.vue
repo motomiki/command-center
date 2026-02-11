@@ -11,7 +11,8 @@ const handleNavigateToStudent = () => {
 
 const handleLogout = async () => {
   await authStore.signOut();
-  await router.replace('/login');
+  // 確実にログイン画面へ移るためフルページ遷移を使用（SPA の router.replace では画面が更新されない環境への対処）
+  window.location.assign('/login');
 };
 </script>
 

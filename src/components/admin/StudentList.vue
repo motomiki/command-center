@@ -7,7 +7,11 @@ import type { CardData } from '@/types/card';
 import AddStudentModal from './modals/AddStudentModal.vue';
 
 const router = useRouter();
-const { students: studentsRepo, cards: cardsRepo } = useRepository();
+const { students: studentsRepo, cards: cardsRepo, sync, isSyncing } =
+  useRepository();
+
+/** 同期中のメッセージ（進捗表示用） */
+const syncMessage = ref('');
 
 // ---------------------------------------------------------------------------
 // データ取得（非同期）
@@ -75,6 +79,24 @@ const handleSave = () => {
   fetchData();
 };
 
+/**
+ * データを同期し、完了後に一覧を再取得する。
+ * キャッシュが DB と一致し、カード数・最新活動日が正しく表示される。
+ */
+const handleSync = async () => {
+  try {
+    await sync((msg) => {
+      syncMessage.value = msg;
+    });
+    // 同期完了後に必ず一覧を再取得し、カード数・最新活動日を最新のキャッシュで反映する
+    await fetchData();
+  } catch (e) {
+    console.warn('[StudentList] 同期に失敗しました', e);
+  } finally {
+    syncMessage.value = '';
+  }
+};
+
 const showAddModal = ref(false);
 </script>
 
@@ -84,6 +106,14 @@ const showAddModal = ref(false);
       <h2 class="page-title">👥 生徒一覧</h2>
       <p class="page-description">生徒を選択してデータを入力・管理できます</p>
     </div>
+
+    <!-- 同期インジケータ -->
+    <Transition name="sync-fade">
+      <div v-if="isSyncing" class="sync-indicator">
+        <div class="sync-spinner"></div>
+        <span class="sync-text">{{ syncMessage || 'データを更新中...' }}</span>
+      </div>
+    </Transition>
 
     <!-- アクションバー -->
     <div class="action-bar">
@@ -98,10 +128,22 @@ const showAddModal = ref(false);
         />
       </div>
 
-      <!-- 新規追加ボタン -->
-      <button class="add-student-btn" @click="showAddModal = true">
-        <span class="btn-icon">＋</span> 新規生徒を追加
-      </button>
+      <div class="action-buttons">
+        <!-- データを同期（DB とキャッシュを一致させ、カード数などを最新に反映） -->
+        <button
+          type="button"
+          class="sync-btn"
+          :disabled="!!isSyncing"
+          aria-label="データを同期"
+          @click="handleSync"
+        >
+          <span class="btn-icon">🔄</span> データを同期
+        </button>
+        <!-- 新規追加ボタン -->
+        <button class="add-student-btn" @click="showAddModal = true">
+          <span class="btn-icon">＋</span> 新規生徒を追加
+        </button>
+      </div>
     </div>
 
     <!-- 生徒カードグリッド -->
@@ -236,6 +278,44 @@ const showAddModal = ref(false);
 .search-bar {
   flex: 1;
   max-width: 500px;
+}
+
+.action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.sync-btn {
+  padding: 0.875rem 1.25rem;
+  min-height: 44px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #1e3a8a;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  white-space: nowrap;
+}
+
+.sync-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 1);
+  border-color: #3b82f6;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.25);
+}
+
+.sync-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .add-student-btn {
@@ -405,6 +485,48 @@ const showAddModal = ref(false);
   font-size: 1.125rem;
   color: #64748b;
   margin: 0;
+}
+
+/* 同期インジケータ */
+.sync-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  margin-bottom: 1rem;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  border: 1px solid rgba(30, 58, 138, 0.2);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.sync-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #e2e8f0;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: sync-spin 0.8s linear infinite;
+}
+
+.sync-text {
+  font-size: 0.875rem;
+  color: #1e3a8a;
+}
+
+@keyframes sync-spin {
+  to { transform: rotate(360deg); }
+}
+
+.sync-fade-enter-active,
+.sync-fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.sync-fade-enter-from,
+.sync-fade-leave-to {
+  opacity: 0;
 }
 
 /* レスポンシブ対応 */

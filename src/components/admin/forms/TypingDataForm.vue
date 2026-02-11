@@ -116,7 +116,11 @@ const handleSubmit = async () => {
     localStorage.removeItem(DRAFT_KEY);
 
   } catch (error) {
-    addToast('エラー', error instanceof Error ? error.message : '保存に失敗しました', 'error');
+    const message = error instanceof Error ? error.message : '保存に失敗しました';
+    const displayMessage = message.includes('タイムアウト')
+      ? '時間がかかりすぎたよ。ネットワークをたしかめてもう一度おしてね'
+      : message;
+    addToast('エラー', displayMessage, 'error');
   } finally {
     isSubmitting.value = false;
   }

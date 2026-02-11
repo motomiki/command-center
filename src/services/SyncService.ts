@@ -340,6 +340,26 @@ export async function syncAll(
     );
     if (resolvedImage) card.imageUrl = resolvedImage;
 
+    // card.minecraftData 内の modelUrl / screenshotUrl を解決（ストレージパス → idb または公開 URL）
+    if (card.minecraftData) {
+      if (card.minecraftData.modelUrl) {
+        const resolvedModel = await resolveAssetUrl(
+          card.minecraftData.modelUrl,
+          errors,
+          countAsset,
+        );
+        if (resolvedModel) card.minecraftData.modelUrl = resolvedModel;
+      }
+      if (card.minecraftData.screenshotUrl) {
+        const resolvedScreenshot = await resolveAssetUrl(
+          card.minecraftData.screenshotUrl,
+          errors,
+          countAsset,
+        );
+        if (resolvedScreenshot) card.minecraftData.screenshotUrl = resolvedScreenshot;
+      }
+    }
+
     allCards.push(card);
   }
 

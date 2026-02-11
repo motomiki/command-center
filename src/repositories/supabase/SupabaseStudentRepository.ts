@@ -3,6 +3,9 @@ import type { Json } from '@/types/supabase';
 import type { IStudentRepository } from '../interfaces';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { getCachedStudents, setCachedStudents } from '@/services/LocalCache';
+import { withTimeout } from '@/utils/timeout';
+
+const SAVE_TIMEOUT_MS = 30000;
 
 /**
  * Supabase / LocalCache を使った IStudentRepository 実装。
@@ -29,7 +32,7 @@ export class SupabaseStudentRepository implements IStudentRepository {
       );
     }
 
-    const { error } = await supabase.from('profiles').upsert({
+    const upsertPromise = supabase.from('profiles').upsert({
       id: student.id,
       display_name: student.name,
       avatar_url: student.avatarUrl ?? null,
@@ -38,6 +41,12 @@ export class SupabaseStudentRepository implements IStudentRepository {
       login_id: student.loginId ?? null,
       updated_at: new Date().toISOString(),
     });
+
+    const { error } = await withTimeout(
+      upsertPromise,
+      SAVE_TIMEOUT_MS,
+      '保存がタイムアウトしました。ネットワークを確認してもう一度お試しください。',
+    );
 
     if (error) {
       throw new Error(`生徒の保存に失敗しました: ${error.message}`);
