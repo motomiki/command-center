@@ -241,11 +241,14 @@ export async function addMinecraftProject(
 }
 
 /**
- * カードを生成（通し番号を自動付与）
+ * カードを生成（通し番号を自動付与、または引数で指定された issueNumber を尊重）
  */
 export async function createCard(cardData: Omit<CardData, 'id'>): Promise<CardData> {
-  // 通し番号をインクリメントして付与
-  const nextIssueNumber = globalSettings.totalCardsIssued + 1;
+  // 通し番号: 引数で指定されていればそれを使用、なければカウンターから付与
+  const nextIssueNumber =
+    cardData.issueNumber != null
+      ? cardData.issueNumber
+      : globalSettings.totalCardsIssued + 1;
 
   const newCard: CardData = {
     ...cardData,
@@ -255,7 +258,8 @@ export async function createCard(cardData: Omit<CardData, 'id'>): Promise<CardDa
   cards.push(newCard);
 
   const previousCount = globalSettings.totalCardsIssued;
-  globalSettings.totalCardsIssued = nextIssueNumber;
+  // 既存カードとの整合性のため、渡された番号が大きい場合はカウンターを更新
+  globalSettings.totalCardsIssued = Math.max(globalSettings.totalCardsIssued, nextIssueNumber);
 
   try {
     await saveCards();

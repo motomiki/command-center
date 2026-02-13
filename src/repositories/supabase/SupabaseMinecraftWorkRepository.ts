@@ -5,6 +5,9 @@ import {
   setCachedMinecraftWorks,
 } from '@/services/LocalCache';
 import { resolveStudentIdToUuid } from '@/utils/studentId';
+import { withTimeout } from '@/utils/timeout';
+
+const SAVE_TIMEOUT_MS = 20_000;
 
 /**
  * Supabase / LocalCache を使った IMinecraftWorkRepository 実装。
@@ -27,31 +30,39 @@ export class SupabaseMinecraftWorkRepository
       );
     }
 
-    const studentUuid = await resolveStudentIdToUuid(work.studentId);
+    const saveWork = async (): Promise<void> => {
+      const studentUuid = await resolveStudentIdToUuid(work.studentId);
 
-    const { error } = await supabase.from('minecraft_works').upsert({
-      id: work.id,
-      student_id: studentUuid,
-      title: work.title,
-      description: work.description,
-      model_path: work.modelUrl ?? null,
-      screenshot_path: work.screenshotUrl ?? null,
-      make_code_url: work.makeCodeUrl ?? null,
-      updated_at: new Date().toISOString(),
-    });
+      const { error } = await supabase.from('minecraft_works').upsert({
+        id: work.id,
+        student_id: studentUuid,
+        title: work.title,
+        description: work.description,
+        model_path: work.modelUrl ?? null,
+        screenshot_path: work.screenshotUrl ?? null,
+        make_code_url: work.makeCodeUrl ?? null,
+        updated_at: new Date().toISOString(),
+      });
 
-    if (error) {
-      throw new Error(`作品の保存に失敗しました: ${error.message}`);
-    }
+      if (error) {
+        throw new Error(`作品の保存に失敗しました: ${error.message}`);
+      }
 
-    // ローカルキャッシュも更新
-    const works = await getCachedMinecraftWorks();
-    const index = works.findIndex((w) => w.id === work.id);
-    if (index >= 0) {
-      works[index] = work;
-    } else {
-      works.push(work);
-    }
-    await setCachedMinecraftWorks(works);
+      // ローカルキャッシュも更新
+      const works = await getCachedMinecraftWorks();
+      const index = works.findIndex((w) => w.id === work.id);
+      if (index >= 0) {
+        works[index] = work;
+      } else {
+        works.push(work);
+      }
+      await setCachedMinecraftWorks(works);
+    };
+
+    await withTimeout(
+      saveWork(),
+      SAVE_TIMEOUT_MS,
+      '送信がタイムアウトしました。ネットワークを確認してください。',
+    );
   }
 }

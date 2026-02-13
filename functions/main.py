@@ -4,7 +4,10 @@ Cloud Functions (第2世代) - Vertex AI Gemini 連携。
 リクエストボディで action を指定:
 - card_text: カード用テキスト（タイトル・コメント・褒め言葉）を生成
 - prompt_optimize: 画像生成用の英語プロンプトを最適化
+- student_icon: 生徒アバター（PFP）画像を生成
+- card_image: カード用イラスト画像を生成（プロンプト最適化＋画像生成）
 """
+import base64
 import json
 import logging
 import os
@@ -133,10 +136,159 @@ Requirements:
     return {"optimizedPrompt": optimized}
 
 
+# 生徒アイコン・カード画像用の画像生成モデル（Vertex AI 画像生成対応）
+STUDENT_ICON_MODEL_FLASH = "gemini-2.5-flash-image"
+STUDENT_ICON_MODEL_PRO = "gemini-3-pro-image-preview"
+
+# 画風キー → スタイル説明（CardGeneratorService.ts の ART_STYLE_PROMPTS と一致させる）
+ART_STYLE_PROMPTS = {
+    "fantasy": "ファンタジー風、魔法や冒険の世界観、温かみのある色彩、子ども向けで夢のあるイラスト。",
+    "anime": "アニメ風、クリーンな線画、鮮やかな色使い、日本のアニメ・イラストスタイル。",
+    "manga": "漫画風、はっきりした線、コントラストの効いたトーン、動きのある構図。",
+    "painting": "絵画風、筆のタッチがわかる質感、芸術的な雰囲気、子どもにも親しみやすいタッチ。",
+    "pixel": "ドット絵風、レトロなピクセルアート、はっきりした色と形、ゲーム風。",
+}
+
+# 画像生成プロンプト末尾の制約（CardGeneratorService.ts の IMAGE_PROMPT_CONSTRAINT_SUFFIX と一致）
+IMAGE_PROMPT_CONSTRAINT_SUFFIX = (
+    " No text, no letters, no logos. No white or black border, no frame, no margin. Full bleed only, edge to edge."
+)
+
+
+def _generate_card_image(client, body: dict) -> dict:
+    """
+    カード用イラスト画像を1枚生成する。
+    リクエスト: title, description, artStyle (fantasy|anime|manga|painting|pixel), modelType (flash|pro)
+    返却: {"imageDataUrl": "data:<mime>;base64,..."}
+    """
+    from google.genai.types import GenerateContentConfig, Modality
+
+    title = (body.get("title") or "").strip() or "カード"
+    description = (body.get("description") or "").strip()
+    art_style_key = body.get("artStyle") or "fantasy"
+    art_style = ART_STYLE_PROMPTS.get(
+        art_style_key, ART_STYLE_PROMPTS["fantasy"]
+    )
+    model_type = body.get("modelType") or "flash"
+    target_model = (
+        STUDENT_ICON_MODEL_PRO if model_type == "pro" else STUDENT_ICON_MODEL_FLASH
+    )
+
+    result = _optimize_prompt(client, title, description, art_style)
+    optimized = (result.get("optimizedPrompt") or "").strip()
+    if not optimized:
+        raise ValueError("Prompt optimization returned empty string for card_image")
+    final_prompt = optimized + IMAGE_PROMPT_CONSTRAINT_SUFFIX
+
+    config = GenerateContentConfig(
+        response_modalities=[Modality.TEXT, Modality.IMAGE],
+    )
+    response = client.models.generate_content(
+        model=target_model,
+        contents=final_prompt,
+        config=config,
+    )
+
+    candidates = getattr(response, "candidates", None) or []
+    if not candidates:
+        raise RuntimeError("No candidates returned (safety filter or model error).")
+
+    content = getattr(candidates[0], "content", None)
+    if content is None:
+        raise RuntimeError("Response has no content.")
+
+    parts = getattr(content, "parts", None) or []
+    for part in parts:
+        inline_data = getattr(part, "inline_data", None)
+        if inline_data is None:
+            continue
+        data_bytes = getattr(inline_data, "data", None)
+        if not data_bytes:
+            continue
+        mime_type = getattr(inline_data, "mime_type", None) or "image/png"
+        b64 = base64.b64encode(data_bytes).decode("ascii")
+        image_data_url = f"data:{mime_type};base64,{b64}"
+        return {"imageDataUrl": image_data_url}
+
+    raise RuntimeError(
+        "Response contained no image part (safety filter or model returned text only)."
+    )
+
+
+def _generate_student_icon(client, body: dict) -> dict:
+    """
+    生徒用アバター（PFP）画像を1枚生成する。
+    リクエスト: prompt, modelType ("flash"|"pro"), gender ("boy"|"girl"), style ("anime"|"pixel")
+    返却: {"imageDataUrl": "data:<mime>;base64,..."}
+    """
+    from google.genai.types import GenerateContentConfig, Modality
+
+    prompt = (body.get("prompt") or "").strip()
+    if not prompt:
+        raise ValueError("prompt is required for student_icon")
+
+    model_type = body.get("modelType") or "flash"
+    target_model = (
+        STUDENT_ICON_MODEL_PRO if model_type == "pro" else STUDENT_ICON_MODEL_FLASH
+    )
+
+    gender = body.get("gender") or "boy"
+    gender_text = "女の子" if gender == "girl" else "男の子"
+
+    style = body.get("style") or "anime"
+    if style == "pixel":
+        style_prompt = (
+            "レトロゲーム風のドット絵（Pixel Art）。16ビット風、ピクセルパーフェクト、ノスタルジックでかわいらしい"
+        )
+    else:
+        style_prompt = (
+            "高品質な日本のアニメ風（Anime Style）イラスト。セルシェーディング、鮮やかな色彩、表情豊かでかわいらしい"
+        )
+
+    final_prompt = (
+        f"{style_prompt}{gender_text}のキャラクターアイコン（PFP / プロフィール画像）を1枚生成してください。"
+        f"正面または斜め向きの顔アップ構図。背景はシンプルな単色にしてください。テーマ: {prompt}"
+    )
+
+    config = GenerateContentConfig(
+        response_modalities=[Modality.TEXT, Modality.IMAGE],
+    )
+    response = client.models.generate_content(
+        model=target_model,
+        contents=final_prompt,
+        config=config,
+    )
+
+    candidates = getattr(response, "candidates", None) or []
+    if not candidates:
+        raise RuntimeError("No candidates returned (safety filter or model error).")
+
+    content = getattr(candidates[0], "content", None)
+    if content is None:
+        raise RuntimeError("Response has no content.")
+
+    parts = getattr(content, "parts", None) or []
+    for part in parts:
+        inline_data = getattr(part, "inline_data", None)
+        if inline_data is None:
+            continue
+        data_bytes = getattr(inline_data, "data", None)
+        if not data_bytes:
+            continue
+        mime_type = getattr(inline_data, "mime_type", None) or "image/png"
+        b64 = base64.b64encode(data_bytes).decode("ascii")
+        image_data_url = f"data:{mime_type};base64,{b64}"
+        return {"imageDataUrl": image_data_url}
+
+    raise RuntimeError(
+        "Response contained no image part (safety filter or model returned text only)."
+    )
+
+
 def handle_request(request):
     """
     HTTP トリガーエントリポイント。
-    POST で JSON ボディ: { "action": "card_text" | "prompt_optimize", ... }
+    POST で JSON ボディ: { "action": "card_text" | "prompt_optimize" | "student_icon" | "card_image", ... }
     """
     if request.method == "OPTIONS":
         headers = {
@@ -160,7 +312,11 @@ def handle_request(request):
     action = body.get("action")
     if not action:
         return (
-            json.dumps({"error": "Missing 'action'. Use 'card_text' or 'prompt_optimize'."}),
+            json.dumps(
+                {
+                    "error": "Missing 'action'. Use 'card_text', 'prompt_optimize', 'student_icon', or 'card_image'."
+                }
+            ),
             400,
             headers,
         )
@@ -190,6 +346,24 @@ def handle_request(request):
             art_style = body.get("artStyle", "子ども向けファンタジー風、温かみのあるイラスト。")
             result = _optimize_prompt(client, title, description, art_style)
             return (json.dumps(result), 200, headers)
+
+        if action == "student_icon":
+            try:
+                result = _generate_student_icon(client, body)
+                return (json.dumps(result), 200, headers)
+            except ValueError as e:
+                return (json.dumps({"error": str(e)}), 400, headers)
+            except RuntimeError as e:
+                return (json.dumps({"error": str(e)}), 500, headers)
+
+        if action == "card_image":
+            try:
+                result = _generate_card_image(client, body)
+                return (json.dumps(result), 200, headers)
+            except ValueError as e:
+                return (json.dumps({"error": str(e)}), 400, headers)
+            except RuntimeError as e:
+                return (json.dumps({"error": str(e)}), 500, headers)
 
         return (
             json.dumps({"error": f"Unknown action: {action}"}),

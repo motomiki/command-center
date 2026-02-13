@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import type { AIModelType } from '@/services/aiService';
+import { generateCardImageViaVertex as fetchCardImageViaVertex } from '@/services/vertexAiService';
 import type { Rarity } from '@/types/card';
 import { trimUniformBorders } from '@/utils/trimUniformBorders';
 
@@ -225,6 +226,15 @@ function resizeToCardArt(dataUrl: string): Promise<Blob> {
   });
 }
 
+/**
+ * Data URL をカード用イラスト Blob に変換する（余白トリム → リサイズ）。
+ * Vertex 経由で取得した画像の後処理に使用する。
+ */
+export async function dataUrlToCardArtBlob(dataUrl: string): Promise<Blob> {
+  const trimmedDataUrl = await trimUniformBorders(dataUrl);
+  return resizeToCardArt(trimmedDataUrl);
+}
+
 export interface GenerateCardImageOptions {
   apiKey: string;
   modelType: AIModelType;
@@ -257,7 +267,30 @@ export async function generateCardImage(
   );
   const finalPrompt = optimizedPrompt + IMAGE_PROMPT_CONSTRAINT_SUFFIX;
   const dataUrl = await generateCardArtDataUrl(apiKey, finalPrompt, modelType);
-  const trimmedDataUrl = await trimUniformBorders(dataUrl);
-  const blob = await resizeToCardArt(trimmedDataUrl);
-  return blob;
+  return dataUrlToCardArtBlob(dataUrl);
+}
+
+export interface GenerateCardImageViaVertexOptions {
+  modelType: AIModelType;
+  title: string;
+  description?: string;
+  artStyle: ArtStyleKey;
+  rarity?: Rarity;
+}
+
+/**
+ * Vertex AI 経由でカード用画像を生成し、PNG Blob で返す。
+ * プロンプト最適化と画像生成は Cloud Functions で実行し、フロントではトリム・リサイズのみ行う。
+ */
+export async function generateCardImageViaVertex(
+  options: GenerateCardImageViaVertexOptions
+): Promise<Blob> {
+  const { modelType, title, description = '', artStyle } = options;
+  const dataUrl = await fetchCardImageViaVertex(
+    title,
+    description,
+    artStyle,
+    modelType
+  );
+  return dataUrlToCardArtBlob(dataUrl);
 }

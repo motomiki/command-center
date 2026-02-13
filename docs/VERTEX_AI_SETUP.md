@@ -23,10 +23,8 @@ Cloud Functions（第2世代）は、デフォルトで **Compute Engine のデ�
 PROJECT_NUMBER=$(gcloud projects describe $(gcloud config get-value project) --format="value(projectNumber)")
 SA_EMAIL="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
-# Vertex AI User ロールを付与
-gcloud projects add-iam-policy-binding $(gcloud config get-value project) \
-  --member="serviceAccount:${SA_EMAIL}" \
-  --role="roles/aiplatform.user"
+# Vertex AI User ロールを付与（1行）
+gcloud projects add-iam-policy-binding $(gcloud config get-value project) --member="serviceAccount:${SA_EMAIL}" --role="roles/aiplatform.user"
 ```
 
 - デプロイ時に別のサービスアカウントを指定している場合は、そのアカウントに上記ロールを付与してください。
@@ -47,19 +45,13 @@ Vertex AI はリージョンごとに利用可能です。Cloud Functions を **
 
 ### デプロイコマンド
 
+PowerShell（Windows）では `\` の行継続は使えません。以下は 1 行のままコピーして実行してください。
+
 ```bash
-# プロジェクトルートで実行（GOOGLE_CLOUD_PROJECT は gcloud のデフォルトプロジェクトが使われます）
-gcloud functions deploy campusclub-vertex-ai \
-  --gen2 \
-  --runtime=python311 \
-  --region=asia-northeast1 \
-  --source=./functions \
-  --entry-point=handle_request \
-  --trigger-http \
-  --allow-unauthenticated \
-  --set-env-vars "GOOGLE_CLOUD_PROJECT=$(gcloud config get-value project),GOOGLE_CLOUD_LOCATION=global,GOOGLE_GENAI_USE_VERTEXAI=True"
+gcloud functions deploy campusclub-vertex-ai --gen2 --runtime=python311 --region=asia-northeast1 --source=./functions --entry-point=handle_request --trigger-http --allow-unauthenticated --set-env-vars "GOOGLE_CLOUD_PROJECT=$(gcloud config get-value project),GOOGLE_CLOUD_LOCATION=global,GOOGLE_GENAI_USE_VERTEXAI=True"
 ```
 
+- プロジェクトルートで実行（GOOGLE_CLOUD_PROJECT は gcloud のデフォルトプロジェクトが使われます）。
 - **GOOGLE_CLOUD_LOCATION=global**: グローバルエンドポイントを使用し、`gemini-2.0-flash-001` の 404 を避けます。リージョン指定（例: asia-northeast1）にするとモデルが未提供で 404 になる場合があります。
 - **allow-unauthenticated**: フロント（Cloud Run）から未認証で呼び出す場合に必要。本番で認証をかけたい場合は IAM や Firebase Auth 等で制御してください。
 - デプロイ後、トリガー URL が表示されます。例（本プロジェクト）: `https://asia-northeast1-campusclub-dashboard.cloudfunctions.net/campusclub-vertex-ai`
@@ -72,11 +64,10 @@ gcloud functions deploy campusclub-vertex-ai \
 |--------|------|
 | `VITE_VERTEX_AI_FUNCTION_URL` | Cloud Functions の HTTP トリガー URL（末尾のスラッシュなし） |
 
-例（Cloud Build で渡す場合）:
+例（Cloud Build で渡す場合・1行）:
 
 ```bash
-gcloud builds submit --config=cloudbuild.yaml . \
-  --substitutions=_VITE_SUPABASE_URL="...",_VITE_SUPABASE_ANON_KEY="...",_VITE_VERTEX_AI_FUNCTION_URL="https://asia-northeast1-YOUR_PROJECT.cloudfunctions.net/campusclub-vertex-ai"
+gcloud builds submit --config=cloudbuild.yaml . --substitutions=_VITE_SUPABASE_URL="...",_VITE_SUPABASE_ANON_KEY="...",_VITE_VERTEX_AI_FUNCTION_URL="https://asia-northeast1-YOUR_PROJECT.cloudfunctions.net/campusclub-vertex-ai"
 ```
 
 `cloudbuild.yaml` にはすでに `_VITE_VERTEX_AI_FUNCTION_URL` の substitution と build-arg が含まれています。未指定の場合は空でビルドされ、フロントでは「AIで文生成」セクションは表示されません。
@@ -98,13 +89,15 @@ gcloud builds submit --config=cloudbuild.yaml . \
    - フロントの「AIで文生成」ボタンで、タイトル・コメント・褒め言葉が入力欄に反映されること。
 2. **プロンプト最適化（prompt_optimize）**  
    - 画像生成フローで Vertex 経由を使う場合、英語プロンプトが返り画像生成に使われること。
+3. **生徒アバター画像生成（student_icon）**  
+   - 管理者で「新規生徒の追加」を開き、アバター欄の「アイコンのイメージ」を入力して「生成」を押す。`VITE_VERTEX_AI_FUNCTION_URL` が設定されている場合は Gemini API Key 入力欄は非表示となり、Vertex 経由で画像が生成されプレビューに表示されること。
+4. **カード画像生成（card_image）**  
+   - 管理者で生徒詳細 → カード生成フォームを開く。`VITE_VERTEX_AI_FUNCTION_URL` が設定されている場合は「Gemini API Key」入力欄が非表示となり、「AIで画像を生成」ボタンで Vertex 経由のカード用イラストが生成され、プレビューに反映されること。タイトル・コメント・画風を変更して生成できること。
 
-API を直接叩く例（card_text）:
+API を直接叩く例（card_text・1行）:
 
 ```bash
-curl -X POST "https://YOUR_FUNCTION_URL" \
-  -H "Content-Type: application/json" \
-  -d '{"action":"card_text","activityType":"typing","context":"WPM 30 を達成"}'
+curl -X POST "https://YOUR_FUNCTION_URL" -H "Content-Type: application/json" -d "{\"action\":\"card_text\",\"activityType\":\"typing\",\"context\":\"WPM 30 を達成\"}"
 ```
 
 期待される応答例:
@@ -116,6 +109,22 @@ curl -X POST "https://YOUR_FUNCTION_URL" \
   "praiseWords": "めっちゃ速い！ この調子でまた練習しよう。"
 }
 ```
+
+API を直接叩く例（student_icon・1行）:
+
+```bash
+curl -X POST "https://YOUR_FUNCTION_URL" -H "Content-Type: application/json" -d "{\"action\":\"student_icon\",\"prompt\":\"宇宙飛行士\",\"modelType\":\"flash\",\"gender\":\"boy\",\"style\":\"anime\"}"
+```
+
+成功時は `{"imageDataUrl":"data:image/png;base64,..."}` が返ります。
+
+API を直接叩く例（card_image・1行）:
+
+```bash
+curl -X POST "https://YOUR_FUNCTION_URL" -H "Content-Type: application/json" -d "{\"action\":\"card_image\",\"title\":\"スピードマスター\",\"description\":\"タイピングが速くなった\",\"artStyle\":\"fantasy\",\"modelType\":\"flash\"}"
+```
+
+- `artStyle` は `fantasy` / `anime` / `manga` / `painting` / `pixel` のいずれか。成功時は `{"imageDataUrl":"data:image/png;base64,..."}` が返ります。
 
 ---
 
@@ -139,18 +148,14 @@ curl -X POST "https://YOUR_FUNCTION_URL" \
 
 ### 3. curl で API を直接叩いて確認する
 
-トリガー URL を実際の URL に置き換えて実行します。
+トリガー URL を実際の URL に置き換えて実行します（1行ずつ）。
 
 ```bash
 # ステータスコードのみ
-curl -s -o /dev/null -w "%{http_code}" -X POST "https://asia-northeast1-YOUR_PROJECT.cloudfunctions.net/campusclub-vertex-ai" \
-  -H "Content-Type: application/json" \
-  -d '{"action":"card_text","activityType":"typing","context":"WPM 30"}'
+curl -s -o /dev/null -w "%{http_code}" -X POST "https://asia-northeast1-YOUR_PROJECT.cloudfunctions.net/campusclub-vertex-ai" -H "Content-Type: application/json" -d "{\"action\":\"card_text\",\"activityType\":\"typing\",\"context\":\"WPM 30\"}"
 
 # レスポンス body を表示（500 のときは error メッセージが返る）
-curl -s -X POST "https://asia-northeast1-YOUR_PROJECT.cloudfunctions.net/campusclub-vertex-ai" \
-  -H "Content-Type: application/json" \
-  -d '{"action":"card_text","activityType":"typing","context":""}'
+curl -s -X POST "https://asia-northeast1-YOUR_PROJECT.cloudfunctions.net/campusclub-vertex-ai" -H "Content-Type: application/json" -d "{\"action\":\"card_text\",\"activityType\":\"typing\",\"context\":\"\"}"
 ```
 
 200 と JSON（title, description, praiseWords）が返れば関数と Vertex AI の連携は正常です。500 のときは body の `error` を読んで上記 1 と照らし合わせてください。

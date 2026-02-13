@@ -1,7 +1,9 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { saveAsset, getAsset } from '@/utils/assetStore';
+import { withTimeout } from '@/utils/timeout';
 
 const DEFAULT_BUCKET = 'assets';
+const UPLOAD_TIMEOUT_MS = 60_000;
 
 /**
  * Supabase Storage にファイルをアップロードし、保存パスを返す。
@@ -25,13 +27,19 @@ export async function uploadAsset(
     return `idb://${assetId}`;
   }
 
-  // 本番モード: Supabase Storage にアップロード
-  const { error } = await supabase.storage
+  // 本番モード: Supabase Storage にアップロード（タイムアウト付き）
+  const uploadPromise = supabase.storage
     .from(bucket)
     .upload(storagePath, file, {
       cacheControl: '3600',
       upsert: true,
     });
+
+  const { error } = await withTimeout(
+    uploadPromise,
+    UPLOAD_TIMEOUT_MS,
+    'ファイルのアップロードがタイムアウトしました。ネットワークを確認してください。',
+  );
 
   if (error) {
     throw new Error(`ファイルのアップロードに失敗しました: ${error.message}`);

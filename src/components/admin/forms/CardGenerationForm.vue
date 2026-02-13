@@ -5,9 +5,12 @@ import SsrCard from '@/components/SsrCard.vue';
 import { useRepository } from '@/composables/useRepository';
 import { saveAsset, getAsset, getAssetUrl } from '@/utils/assetStore';
 import { uploadAsset } from '@/services/StorageService';
+import { getNextIssueNumber } from '@/utils/issueNumber';
+import { withTimeout } from '@/utils/timeout';
 import { useToast } from '@/composables/useToast';
 import {
   generateCardImage,
+  generateCardImageViaVertex,
   type ArtStyleKey,
 } from '@/services/CardGeneratorService';
 import type { AIModelType } from '@/services/aiService';
@@ -99,7 +102,8 @@ onMounted(async () => {
 });
 
 const handleGenerateImage = async () => {
-  if (!apiKey.value.trim()) {
+  const useVertex = isVertexAiAvailable();
+  if (!useVertex && !apiKey.value.trim()) {
     addToast('APIキーを入力してください', 'Gemini API Key を入力してから画像を生成できます。', 'warning');
     return;
   }
@@ -109,15 +113,25 @@ const handleGenerateImage = async () => {
   }
   isGeneratingImage.value = true;
   try {
-    localStorage.setItem(STORAGE_KEY_API_KEY, apiKey.value);
-    const blob = await generateCardImage({
-      apiKey: apiKey.value,
-      modelType: modelType.value,
-      title: formData.value.title.trim() || 'カード',
-      description: formData.value.description?.trim() ?? '',
-      artStyle: artStyle.value,
-      rarity: formData.value.rarity,
-    });
+    const blob = useVertex
+      ? await generateCardImageViaVertex({
+          modelType: modelType.value,
+          title: formData.value.title.trim() || 'カード',
+          description: formData.value.description?.trim() ?? '',
+          artStyle: artStyle.value,
+          rarity: formData.value.rarity,
+        })
+      : await generateCardImage({
+          apiKey: apiKey.value,
+          modelType: modelType.value,
+          title: formData.value.title.trim() || 'カード',
+          description: formData.value.description?.trim() ?? '',
+          artStyle: artStyle.value,
+          rarity: formData.value.rarity,
+        });
+    if (!useVertex) {
+      localStorage.setItem(STORAGE_KEY_API_KEY, apiKey.value);
+    }
     const assetId = await saveAsset(blob);
     formData.value.imageAssetId = assetId;
     imagePreviewUrl.value = URL.createObjectURL(blob);
@@ -242,7 +256,11 @@ const handleFinalSubmit = async () => {
     const imageAssetId = formData.value.imageAssetId;
 
     let imageUrlForSave: string;
-    const blob = await getAsset(imageAssetId);
+    const blob = await withTimeout(
+      getAsset(imageAssetId),
+      15_000,
+      '画像の読み込みがタイムアウトしました。もう一度お試しください。',
+    );
     if (blob) {
       const ext = getImageExtension(blob);
       const storagePath = `cards/${cardId}${ext}`;
@@ -253,11 +271,12 @@ const handleFinalSubmit = async () => {
       return;
     }
 
-    const allCards = await cardsRepo.getAll();
-    const nextIssueNumber =
-      allCards.length === 0
-        ? 1
-        : Math.max(0, ...allCards.map((c) => c.issueNumber ?? 0)) + 1;
+    const allCards = await withTimeout(
+      cardsRepo.getAll(),
+      10_000,
+      'データの読み込みがタイムアウトしました。もう一度お試しください。',
+    );
+    const nextIssueNumber = getNextIssueNumber(allCards);
 
     await cardsRepo.save({
       id: cardId,
@@ -349,7 +368,7 @@ const handleFinalSubmit = async () => {
 
           <!-- Vertex AI: カード用テキスト生成（必須2 充足） -->
           <div v-if="isVertexAiAvailable()" class="vertex-text-section">
-            <h4 class="vertex-section-title">✨ AIで文生成（Vertex AI）</h4>
+            <h4 class="vertex-section-title">✨ AIで文を生成（Vertex AI）</h4>
             <p class="vertex-section-desc">
               活動の種類と補足を選ぶと、カード名とコメントのたたき台を生成します。
             </p>
@@ -389,7 +408,7 @@ const handleFinalSubmit = async () => {
               @click="handleGenerateText"
             >
               <span v-if="isGeneratingText" class="loader"></span>
-              {{ isGeneratingText ? '生成中...' : '✨ AIで文を生成' }}
+              {{ isGeneratingText ? '生成中...' : '✨ AIで文を生成する' }}
             </button>
           </div>
 
@@ -399,7 +418,7 @@ const handleFinalSubmit = async () => {
             <p class="ai-section-desc">
               カード名とコメントの内容から、AIがイラストのイメージを読み取って生成します。
             </p>
-            <div class="form-group">
+            <div v-if="!isVertexAiAvailable()" class="form-group">
               <label for="gemini-api-key" class="form-label">Gemini API Key</label>
               <input
                 id="gemini-api-key"

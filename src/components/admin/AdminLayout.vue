@@ -10,9 +10,13 @@ const handleNavigateToStudent = () => {
 };
 
 const handleLogout = async () => {
-  await authStore.signOut();
-  // 確実にログイン画面へ移るためフルページ遷移を使用（SPA の router.replace では画面が更新されない環境への対処）
-  window.location.assign('/login');
+  try {
+    await authStore.signOut();
+  } finally {
+    // 確実にログイン画面へ移るためフルページ遷移を使用（SPA の router.replace では画面が更新されない環境への対処）
+    // タイムアウト時もストアでセッションはクリアされているため、必ず遷移する
+    window.location.assign('/login');
+  }
 };
 </script>
 
@@ -44,8 +48,9 @@ const handleLogout = async () => {
             @click="handleLogout"
             class="logout-btn"
             aria-label="ログアウト"
+            :disabled="authStore.loading"
           >
-            🚪 ログアウト
+            {{ authStore.loading ? 'ログアウト中...' : '🚪 ログアウト' }}
           </button>
         </div>
       </div>
@@ -194,10 +199,15 @@ const handleLogout = async () => {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .logout-btn:hover {
+  .logout-btn:hover:not(:disabled) {
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(239, 68, 68, 0.4);
   }
+}
+
+.logout-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .logout-btn:active {

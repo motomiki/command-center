@@ -22,8 +22,11 @@ const router = useRouter();
 const authStore = useAuthStore();
 
 const handleLogout = async () => {
-  await authStore.signOut();
-  await router.replace('/login');
+  try {
+    await authStore.signOut();
+  } finally {
+    await router.replace('/login');
+  }
 };
 
 // ナビゲーション項目（常に上部に表示）
@@ -97,9 +100,10 @@ const handleKeyDown = (e: KeyboardEvent, section: DashboardSection) => {
           @click="handleLogout"
           class="nav-button logout-button"
           aria-label="ログアウト"
+          :disabled="authStore.loading"
         >
           <span class="nav-icon">🚪</span>
-          <span class="nav-label">ログアウト</span>
+          <span class="nav-label">{{ authStore.loading ? 'ログアウト中...' : 'ログアウト' }}</span>
         </button>
       </div>
     </div>
@@ -241,9 +245,14 @@ const handleKeyDown = (e: KeyboardEvent, section: DashboardSection) => {
   color: #64748b !important;
 }
 
-.logout-button:hover {
+.logout-button:hover:not(:disabled) {
   color: #ef4444 !important;
   background: #fef2f2 !important;
+}
+
+.logout-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 /* アクセシビリティ: アニメーションを好まないユーザー向け */

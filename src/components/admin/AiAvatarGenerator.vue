@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { generateStudentIcon, type AIModelType, type AvatarStyleType } from '@/services/aiService';
+import {
+  isVertexAiAvailable,
+  generateStudentIconViaVertex,
+} from '@/services/vertexAiService';
 import { useToast } from '@/composables/useToast';
 
 const props = defineProps<{
@@ -50,20 +54,35 @@ onMounted(() => {
 });
 
 const handleGenerateIcon = async () => {
-  if (!apiKey.value) {
-    addToast('APIキーを入力してください', 'error');
-    return;
-  }
-  
   if (!prompt.value) {
     addToast('生成するアイコンのイメージを入力してください', 'error');
     return;
   }
 
+  if (!isVertexAiAvailable() && !apiKey.value) {
+    addToast('APIキーを入力してください', 'error');
+    return;
+  }
+
   isGenerating.value = true;
   try {
-    localStorage.setItem(STORAGE_KEY_API_KEY, apiKey.value);
-    const url = await generateStudentIcon(prompt.value, apiKey.value, modelType.value, gender.value, avatarStyle.value);
+    const url = isVertexAiAvailable()
+      ? await generateStudentIconViaVertex(
+          prompt.value,
+          modelType.value,
+          gender.value,
+          avatarStyle.value
+        )
+      : await generateStudentIcon(
+          prompt.value,
+          apiKey.value,
+          modelType.value,
+          gender.value,
+          avatarStyle.value
+        );
+    if (!isVertexAiAvailable()) {
+      localStorage.setItem(STORAGE_KEY_API_KEY, apiKey.value);
+    }
     avatarUrl.value = url;
     emit('update:avatarUrl', url);
     addToast('アイコンを生成しました', 'success');
@@ -78,7 +97,7 @@ const handleGenerateIcon = async () => {
 <template>
   <div class="ai-generator-container">
     <div class="ai-controls">
-      <div class="input-group">
+      <div v-if="!isVertexAiAvailable()" class="input-group">
         <span class="input-label">Gemini API Key</span>
         <input
           v-model="apiKey"

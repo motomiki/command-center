@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { withTimeout } from '@/utils/timeout';
 
 // ---------------------------------------------------------------------------
 // 型定義
@@ -276,6 +277,9 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  /** ログアウトのタイムアウト（ミリ秒） */
+  const SIGNOUT_TIMEOUT_MS = 15_000;
+
   /**
    * ログアウト
    */
@@ -284,7 +288,11 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       if (isSupabaseConfigured) {
-        await supabase.auth.signOut();
+        await withTimeout(
+          supabase.auth.signOut(),
+          SIGNOUT_TIMEOUT_MS,
+          'ログアウトがタイムアウトしました。ネットワークを確認してください。',
+        );
       }
     } catch (err) {
       console.error('[Auth] signOut エラー:', err);

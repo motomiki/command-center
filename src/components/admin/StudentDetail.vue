@@ -32,6 +32,7 @@ watch(studentId, fetchStudent);
 
 const isEditingIcon = ref(false);
 const newAvatarUrl = ref('');
+const isSaving = ref(false);
 
 type TabType = 'typing' | 'minecraft' | 'card';
 const activeTab = ref<TabType>('typing');
@@ -42,6 +43,7 @@ const handleBack = () => {
 
 const handleUpdateIcon = async () => {
   if (!newAvatarUrl.value || !student.value) return;
+  isSaving.value = true;
   try {
     const urlToSave = await resizeAvatarDataUrl(newAvatarUrl.value);
     student.value.avatarUrl = urlToSave;
@@ -51,6 +53,8 @@ const handleUpdateIcon = async () => {
   } catch (error) {
     const message = error instanceof Error ? error.message : '更新に失敗しました';
     addToast('更新に失敗しました', message, 'error');
+  } finally {
+    isSaving.value = false;
   }
 };
 </script>
@@ -101,8 +105,8 @@ const handleUpdateIcon = async () => {
             :student-name="student.name"
           />
           <div class="edit-actions">
-            <button @click="handleUpdateIcon" :disabled="!newAvatarUrl" class="save-icon-btn">
-              このアイコンを保存する
+            <button @click="handleUpdateIcon" :disabled="!newAvatarUrl || isSaving" class="save-icon-btn">
+              {{ isSaving ? '保存中...' : 'このアイコンを保存する' }}
             </button>
           </div>
         </div>

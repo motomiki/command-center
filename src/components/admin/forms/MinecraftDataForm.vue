@@ -7,7 +7,9 @@ import { useRepository } from '@/composables/useRepository';
 import { resolveAssetForSave, buildAssetPath } from '@/services/StorageService';
 import { saveAsset, getAssetUrl } from '@/utils/assetStore';
 import { useToast } from '@/composables/useToast';
+import { getNextIssueNumber } from '@/utils/issueNumber';
 import { placeholders } from '@/utils/placeholder';
+import { withTimeout } from '@/utils/timeout';
 import { getRarityDisplayName } from '@/utils/rarity';
 import type { Rarity } from '@/types/card';
 
@@ -240,6 +242,14 @@ const executeSave = async () => {
       createdAt: formData.value.createdAt,
     });
 
+    // 通し番号を付与するため全カードを取得して次番号を算出
+    const allCards = await withTimeout(
+      cards.getAll(),
+      10_000,
+      'データの読み込みがタイムアウトしました。もう一度お試しください。',
+    );
+    const nextIssueNumber = getNextIssueNumber(allCards);
+
     // cardFormData のカスタマイズ値を使用してカードを作成
     await cards.save({
       id: crypto.randomUUID(),
@@ -256,6 +266,7 @@ const executeSave = async () => {
         screenshotUrl: finalScreenshotUrl,
         makeCodeUrl: formData.value.makeCodeUrl.trim() || undefined,
       },
+      issueNumber: nextIssueNumber,
     });
 
     addToast('保存完了', 'Minecraft作品とカードを登録しました！', 'success');
