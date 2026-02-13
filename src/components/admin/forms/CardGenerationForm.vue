@@ -11,6 +11,10 @@ import {
   type ArtStyleKey,
 } from '@/services/CardGeneratorService';
 import type { AIModelType } from '@/services/aiService';
+import {
+  isVertexAiAvailable,
+  generateCardText,
+} from '@/services/vertexAiService';
 import type { Rarity, CardData } from '@/types/card';
 
 interface Props {
@@ -37,6 +41,12 @@ const imagePreviewUrl = ref<string | null>(null);
 
 const isSubmitting = ref(false);
 const isGeneratingImage = ref(false);
+const isGeneratingText = ref(false);
+
+/** Vertex AI「AIで文生成」用: 活動の種類 */
+const cardActivityType = ref<'typing' | 'minecraft'>('typing');
+/** Vertex AI「AIで文生成」用: 補足（例: WPM 30 達成） */
+const cardTextContext = ref('');
 
 type StepType = 'form' | 'confirm';
 const step = ref<StepType>('form');
@@ -124,6 +134,28 @@ const handleGenerateImage = async () => {
     );
   } finally {
     isGeneratingImage.value = false;
+  }
+};
+
+/** Vertex AI 経由でカードのタイトル・コメント・褒め言葉を生成し、フォームに反映する */
+const handleGenerateText = async () => {
+  if (!isVertexAiAvailable()) return;
+  isGeneratingText.value = true;
+  try {
+    const result = await generateCardText(
+      cardActivityType.value,
+      cardTextContext.value.trim()
+    );
+    formData.value.title = result.title;
+    formData.value.description = result.description
+      ? `${result.description}${result.praiseWords ? ` ${result.praiseWords}` : ''}`
+      : result.praiseWords;
+    addToast('文を生成しました', 'Vertex AI でカードの文を生成しました。', 'success');
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '文の生成に失敗しました。';
+    addToast('AIで文生成に失敗しました', message, 'error');
+  } finally {
+    isGeneratingText.value = false;
   }
 };
 
@@ -313,6 +345,52 @@ const handleFinalSubmit = async () => {
               rows="3"
               placeholder="先生からのコメント..."
             ></textarea>
+          </div>
+
+          <!-- Vertex AI: カード用テキスト生成（必須2 充足） -->
+          <div v-if="isVertexAiAvailable()" class="vertex-text-section">
+            <h4 class="vertex-section-title">✨ AIで文生成（Vertex AI）</h4>
+            <p class="vertex-section-desc">
+              活動の種類と補足を選ぶと、カード名とコメントのたたき台を生成します。
+            </p>
+            <div class="form-group">
+              <span class="form-label">活動の種類</span>
+              <div class="activity-type-selector">
+                <button
+                  type="button"
+                  :class="['activity-type-btn', { active: cardActivityType === 'typing' }]"
+                  @click="cardActivityType = 'typing'"
+                >
+                  タイピング
+                </button>
+                <button
+                  type="button"
+                  :class="['activity-type-btn', { active: cardActivityType === 'minecraft' }]"
+                  @click="cardActivityType = 'minecraft'"
+                >
+                  Minecraft
+                </button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="card-text-context" class="form-label">補足（任意）</label>
+              <input
+                id="card-text-context"
+                v-model="cardTextContext"
+                type="text"
+                class="form-input"
+                placeholder="例: WPM 30 達成、初めての建築"
+              />
+            </div>
+            <button
+              type="button"
+              :disabled="isGeneratingText"
+              class="vertex-generate-btn"
+              @click="handleGenerateText"
+            >
+              <span v-if="isGeneratingText" class="loader"></span>
+              {{ isGeneratingText ? '生成中...' : '✨ AIで文を生成' }}
+            </button>
           </div>
 
           <!-- AI生成用: API Key / モデル / 画風 -->
@@ -548,6 +626,81 @@ const handleFinalSubmit = async () => {
   width: 100%;
   background: white;
   cursor: pointer;
+}
+
+/* Vertex AI で文生成セクション */
+.vertex-text-section {
+  padding: 1.25rem;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border-radius: 12px;
+  border: 1px solid #a7f3d0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.vertex-section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #047857;
+  margin: 0 0 0.25rem 0;
+}
+
+.vertex-section-desc {
+  font-size: 0.8125rem;
+  color: #065f46;
+  margin: 0 0 0.5rem 0;
+  line-height: 1.4;
+}
+
+.activity-type-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.activity-type-btn {
+  padding: 0.5rem 1rem;
+  border: 2px solid #a7f3d0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #047857;
+  transition: all 0.2s ease;
+}
+
+.activity-type-btn:hover {
+  border-color: #34d399;
+  background: white;
+}
+
+.activity-type-btn.active {
+  border-color: #059669;
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  color: #047857;
+}
+
+.vertex-generate-btn {
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: opacity 0.2s;
+}
+
+.vertex-generate-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 /* AI生成セクション */

@@ -1,0 +1,4 @@
+# Vertex AI (Gemini) 呼び出し用。Cloud Functions では ADC で認証。
+# バージョンはデプロイ再現性のため上限を指定。
+google-genai>=1.0.0,<2.0.0
+functions-framework>=3.0.0

@@ -70,7 +70,7 @@ export function trimUniformBorders(
   const colorTolerance = options.colorTolerance ?? DEFAULT_COLOR_TOLERANCE;
   const minContentRatio = options.minContentRatio ?? DEFAULT_MIN_CONTENT_RATIO;
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve, _reject) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {

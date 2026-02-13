@@ -40,16 +40,16 @@ export class SupabaseStudentRepository implements IStudentRepository {
       role: 'student' as const,
       login_id: student.loginId ?? null,
       updated_at: new Date().toISOString(),
-    });
+    }) as unknown as Promise<{ error: { message: string } | null }>;
 
-    const { error } = await withTimeout(
+    const result = await withTimeout(
       upsertPromise,
       SAVE_TIMEOUT_MS,
       '保存がタイムアウトしました。ネットワークを確認してもう一度お試しください。',
     );
 
-    if (error) {
-      throw new Error(`生徒の保存に失敗しました: ${error.message}`);
+    if (result?.error) {
+      throw new Error(`生徒の保存に失敗しました: ${result.error.message}`);
     }
 
     // ローカルキャッシュも更新

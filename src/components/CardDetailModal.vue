@@ -231,7 +231,7 @@ const diffColor = computed(() => {
                       class="screenshot-image"
                     />
                   </div>
-                  <div v-if="card.minecraftData.makeCodeUrl" class="makecode-link">
+                  <div v-if="card.minecraftData.makeCodeUrl && !card.minecraftData.modelUrl" class="makecode-link">
                     <a
                       :href="card.minecraftData.makeCodeUrl"
                       target="_blank"

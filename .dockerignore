@@ -1,0 +1,50 @@
+# 依存関係（コンテナ内で npm ci するため）
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store
+
+# ビルド成果物（コンテナ内で再ビルドするため）
+dist
+dist-ssr
+*.local
+
+# バージョン管理・IDE
+.git
+.gitignore
+.vscode
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+
+# 環境変数（ビルド時は --build-arg で渡すため含めない）
+.env
+.env.*
+!.env.example
+
+# ドキュメント・開発用（本番イメージに不要）
+docs
+*.md
+!README.md
+Unused
+.cursor
+.editorconfig
+
+# テスト・Lint 中間ファイル
+coverage
+.nyc_output
+*.log
+logs
+
+# Python（TCG ジェネレータ等、フロントビルドに不要）
+__pycache__
+*.py[cod]
+*.pyo
+.Python
+scripts/tcg_generator

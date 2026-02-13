@@ -63,7 +63,6 @@ function createCrossStarTexture(size = 64): THREE.CanvasTexture {
   if (!ctx) return new THREE.CanvasTexture(canvas);
 
   const cx = size / 2;
-  const armLen = cx - 2;
   const armWidth = Math.max(2, size / 16);
   const coreR = size / 8;
 

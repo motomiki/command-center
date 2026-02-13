@@ -136,7 +136,7 @@ async function generateCardArtDataUrl(
   const targetModel =
     modelType === 'flash' ? 'gemini-2.5-flash-image' : 'gemini-3-pro-image-preview';
   const config = {
-    responseModalities: ['IMAGE'] as const,
+    responseModalities: ['IMAGE'] as unknown as string[],
     imageConfig: { aspectRatio: '1:1' as const },
   };
   const contents = [{ role: 'user' as const, parts: [{ text: prompt }] }];
@@ -171,8 +171,11 @@ async function generateCardArtDataUrl(
   }
 
   const part = response.candidates[0].content.parts[0];
-  const { mimeType, data } = part.inlineData;
-  return `data:${mimeType};base64,${data}`;
+  const inline = part.inlineData as { mimeType?: string; data?: string } | undefined;
+  if (!inline?.mimeType || !inline?.data) {
+    throw new Error('AIからの応答に画像データが含まれていませんでした。');
+  }
+  return `data:${inline.mimeType};base64,${inline.data}`;
 }
 
 /**

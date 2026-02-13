@@ -263,7 +263,7 @@ async function runDiagnosticStorage() {
   try {
     // listBuckets() は anon キーでは RLS により空配列を返すため、
     // 代わりに「assets バケット内の list」で存在・アクセス可否を確認する。
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from('assets')
       .list('', { limit: 1 });
 
