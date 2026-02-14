@@ -74,7 +74,7 @@ Minecraft 作品に限らず、特別なご褒美や表彰としてカードを�
 
 管理画面のトップページから新しい生徒を追加できます。同時に AI を使って生徒のアイコンを生成できます。
 
-- **Vertex AI 利用時**: `.env` に `VITE_VERTEX_AI_FUNCTION_URL` を設定していると、API キー入力なしでアイコン生成が利用できます（[docs/VERTEX_AI_SETUP.md](docs/VERTEX_AI_SETUP.md) を参照）。
+- **Vertex AI 利用時**: `.env` に `VITE_VERTEX_AI_FUNCTION_URL`（Cloud Functions の URL）を設定していると、API キー入力なしでアイコン生成が利用できます。
 - **未設定時**: 画面上で Gemini API キーを入力すると、同じくアイコンを生成できます。
 
 #### 🎨 良いアイコンを作るためのコツ
@@ -159,7 +159,7 @@ Minecraft 作品に限らず、特別なご褒美や表彰としてカードを�
 
 データベースは `supabase/schema.sql` を SQL Editor で実行して作成します。マイグレーションは `supabase/migrations/`、ストレージ設定は `supabase/storage.sql` を参照してください。
 
-**AI（Vertex AI）を利用する場合:** Cloud Functions のデプロイと `VITE_VERTEX_AI_FUNCTION_URL` の設定手順は [docs/VERTEX_AI_SETUP.md](docs/VERTEX_AI_SETUP.md) を参照してください。本番デプロイは [docs/DEPLOY_CLOUD_RUN.md](docs/DEPLOY_CLOUD_RUN.md) を参照してください。
+**AI（Vertex AI）を利用する場合:** Cloud Functions のデプロイと `VITE_VERTEX_AI_FUNCTION_URL` の設定は、Google Cloud の [Vertex AI](https://cloud.google.com/vertex-ai/docs)、[Cloud Functions](https://cloud.google.com/functions/docs)、[Cloud Run](https://cloud.google.com/run/docs) の公式ドキュメントを参照してください。本番デプロイは `cloudbuild.yaml` と `Dockerfile` を利用した Cloud Build から実行できます。
 
 ---
 
