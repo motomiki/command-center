@@ -2,7 +2,17 @@
 
 本プロジェクトは、小学生が日々の学習成果を楽しく記録し、所有感と達成感を味わえるように設計されたリッチなUIの学習記録アプリです。
 
-**本作品は Google Cloud ハッカソンに応募しています。** 審査員の方は、デプロイ・採用ツール・デモ手順を [docs/SUBMISSION.md](docs/SUBMISSION.md) でご確認ください。
+**本作品は Google Cloud ハッカソンに応募しています。** 審査員の方は、下記「審査員向け」をご覧ください。
+
+### デモ用アカウント（審査員向け）
+| 種別 | メール / ログインID | パスワード |
+|------|---------------------|------------|
+| 👨‍🏫 先生 | teacher@example.com | teacher123 |
+| 🧑‍🎓 生徒 | student-1（ログインID） | student123 |
+
+※ 生徒はログインID `student-1` とパスワードでログインします。
+
+---
 
 ## 1. システム概要
 
@@ -150,6 +160,22 @@ Minecraft 作品に限らず、特別なご褒美や表彰としてカードを�
 データベースは `supabase/schema.sql` を SQL Editor で実行して作成します。マイグレーションは `supabase/migrations/`、ストレージ設定は `supabase/storage.sql` を参照してください。
 
 **AI（Vertex AI）を利用する場合:** Cloud Functions のデプロイと `VITE_VERTEX_AI_FUNCTION_URL` の設定手順は [docs/VERTEX_AI_SETUP.md](docs/VERTEX_AI_SETUP.md) を参照してください。本番デプロイは [docs/DEPLOY_CLOUD_RUN.md](docs/DEPLOY_CLOUD_RUN.md) を参照してください。
+
+---
+
+## 審査員向け（Google Cloud ハッカソン）
+
+### 採用ツール
+- **必須1:** Cloud Run（Vue ホスティング）、Cloud Functions 第2世代（Vertex AI 呼び出し）
+- **必須2:** Vertex AI (Gemini) — カード文生成・褒め言葉
+
+### デプロイ（要約）
+`gcloud builds submit --config=cloudbuild.yaml . --substitutions=_VITE_SUPABASE_URL="https://...",_VITE_SUPABASE_ANON_KEY="..."`  
+403 の場合は Cloud Run の IAM で未認証呼び出しを許可してください。
+
+### 確認チェックリスト
+1. Cloud Run の URL でログイン画面が表示されること
+2. 先生でログイン → 生徒詳細 → 「カード生成」タブで「✨ AIで文生成」が使えること
 
 ---
 
