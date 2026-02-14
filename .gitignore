@@ -12,25 +12,40 @@ dist
 dist-ssr
 *.local
 
-# Editor directories and files
+# Editor / IDE
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
+.cursor
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
 
-# API key（コミットしない）
+# 環境変数（API key 等はコミットしない）
 .env
+.env.*
+!.env.example
+
+# 開発用・退避用（ハッカソン公開時にリポジトリに含めない）
+Unused
 
 # Python（scripts/tcg_generator など）
 __pycache__/
 *.py[cod]
 *.pyo
 .Python
+*.pyc
+.venv
+venv
 
-# TCG ジェネレータのプレビュー出力（生成物は Unused に退避する運用）
+# TCG ジェネレータのプレビュー出力
 scripts/tcg_generator/output/*.png
+
+# テスト・ビルドキャッシュ
+coverage
+.nyc_output
+.eslintcache
+*.tsbuildinfo

@@ -110,8 +110,8 @@ const handleGenerateIcon = async () => {
       <div class="input-group">
         <span class="input-label">AIモデル</span>
         <select v-model="modelType" class="form-select">
-          <option value="flash">Gemini 2.5 Flash Image (Dev)</option>
-          <option value="pro">Gemini 3 Pro Image (Prod)</option>
+          <option value="flash">標準（高速生成）</option>
+          <option value="pro">高画質（品質優先）</option>
         </select>
       </div>
 

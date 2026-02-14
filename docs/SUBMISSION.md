@@ -78,7 +78,17 @@
 
 ---
 
-## 4. 参照
+## 4. コード公開前の確認（リポジトリ公開時）
+
+- **`.env`** はコミットしない（`.gitignore` 済み）。`.env.example` のみ公開し、審査員は各自で `.env` を作成する。
+- **Unused/** は開発用・サンプル退避用のため `.gitignore` に含まれており、公開リポジトリには含めない。過去にコミット済みの場合は、プロジェクトルートで次を実行してからコミットする:  
+  `git rm -r --cached Unused`
+- **dist/** はビルド成果物のため `.gitignore` 済み。Cloud Build がコンテナ内で再ビルドする。
+- ビルド確認: `npm run build` で成功すること。Lint は `npx eslint . --ext .vue,.js,.jsx,.ts,.tsx --fix --ignore-path .gitignore` で実行可能。
+
+---
+
+## 5. 参照リンク
 
 - **プロジェクトの要件・データ構造:** [plans.md](../plans.md)
 - **開発ガイドライン（AI Agent 向け）:** [AGENTS.md](../AGENTS.md)
