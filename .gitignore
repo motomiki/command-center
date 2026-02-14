@@ -32,6 +32,7 @@ dist-ssr
 # 開発用・退避用（ハッカソン公開時にリポジトリに含めない）
 Unused
 docs
+plans.md
 
 # Python（scripts/tcg_generator など）
 __pycache__/
