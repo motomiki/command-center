@@ -33,6 +33,7 @@ dist-ssr
 Unused
 docs
 plans.md
+AGENTS.md
 
 # Python（scripts/tcg_generator など）
 __pycache__/
