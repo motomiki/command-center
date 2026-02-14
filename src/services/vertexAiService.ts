@@ -243,3 +243,76 @@ export async function generateCardImageViaVertex(
 
   return imageDataUrl;
 }
+
+export interface MinecraftDataResult {
+  title: string;
+  description: string;
+}
+
+/** 画像ファイルを Base64 文字列に変換（Vertex 送信用） */
+async function fileToBase64ForVertex(file: File): Promise<{ mimeType: string; data: string }> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (!match) {
+        reject(new Error('画像の読み込みに失敗しました。'));
+        return;
+      }
+      resolve({ mimeType: match[1], data: match[2] });
+    };
+    reader.onerror = () => reject(new Error('画像の読み込みに失敗しました。'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Minecraft のスクリーンショットを Vertex AI（Cloud Functions）経由で分析し、
+ * 作品名と説明文を生成する。バックエンドで action: 'minecraft_analyze' を処理する想定。
+ */
+export async function generateMinecraftDataViaVertex(
+  imageFile: File
+): Promise<MinecraftDataResult> {
+  if (!isVertexAiAvailable()) {
+    throw new Error(
+      'Vertex AI の URL が設定されていません。VITE_VERTEX_AI_FUNCTION_URL をビルド時に設定してください。'
+    );
+  }
+
+  const { mimeType, data } = await fileToBase64ForVertex(imageFile);
+
+  const res = await fetch(BASE_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'minecraft_analyze',
+      image: { mimeType, data },
+    }),
+  });
+
+  const rawBody = await res.text();
+  const dataRes: { error?: string; title?: string; description?: string } = (() => {
+    try {
+      return rawBody ? JSON.parse(rawBody) : {};
+    } catch {
+      return {};
+    }
+  })();
+
+  if (!res.ok) {
+    const message =
+      typeof dataRes?.error === 'string'
+        ? dataRes.error
+        : rawBody.trim()
+          ? `画像の分析に失敗しました（${res.status}）: ${rawBody.slice(0, 200)}`
+          : `画像の分析に失敗しました（${res.status}）`;
+    console.error('[Vertex AI minecraft_analyze]', res.status, dataRes?.error ?? rawBody.slice(0, 500));
+    throw new Error(message);
+  }
+
+  return {
+    title: typeof dataRes.title === 'string' ? dataRes.title.trim() : 'Minecraft作品',
+    description: typeof dataRes.description === 'string' ? dataRes.description.trim() : 'ブロックでつくった作品です。',
+  };
+}

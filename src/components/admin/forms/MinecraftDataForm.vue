@@ -3,10 +3,16 @@ import { ref, watch, onMounted, computed } from 'vue';
 import DropZone from '@/components/common/DropZone.vue';
 import MinecraftViewer from '@/components/MinecraftViewer.vue';
 import SsrCard from '@/components/SsrCard.vue';
+import CaptureScreenshotModal from '@/components/admin/modals/CaptureScreenshotModal.vue';
 import { useRepository } from '@/composables/useRepository';
 import { resolveAssetForSave, buildAssetPath } from '@/services/StorageService';
-import { saveAsset, getAssetUrl } from '@/utils/assetStore';
+import { saveAsset, getAssetUrl, getAsset } from '@/utils/assetStore';
 import { useToast } from '@/composables/useToast';
+import {
+  isVertexAiAvailable,
+  generateMinecraftDataViaVertex,
+} from '@/services/vertexAiService';
+import { generateMinecraftData } from '@/services/aiService';
 import { getNextIssueNumber } from '@/utils/issueNumber';
 import { placeholders } from '@/utils/placeholder';
 import { withTimeout } from '@/utils/timeout';
@@ -54,6 +60,10 @@ const modelPreviewUrl = ref<string | null>(null);
 const screenshotPreviewUrl = ref<string | null>(null);
 
 const isSubmitting = ref(false);
+const isGeneratingAi = ref(false);
+const aiApiKey = ref('');
+
+const STORAGE_KEY_API_KEY = 'campusclub_gemini_api_key';
 
 // URL for confirmation / card preview (blob or idb://)
 const confirmModelUrl = computed(() =>
@@ -101,6 +111,9 @@ watch(formData, (newVal) => {
 }, { deep: true });
 
 onMounted(async () => {
+  const savedKey = localStorage.getItem(STORAGE_KEY_API_KEY);
+  if (savedKey) aiApiKey.value = savedKey;
+
   const savedDraft = localStorage.getItem(DRAFT_KEY);
   if (savedDraft) {
     try {
@@ -172,6 +185,79 @@ const handleScreenshotFilesDropped = async (files: File[]) => {
 
 const handleError = (msg: string) => {
   addToast('エラー', msg, 'error');
+};
+
+// ---------------------------------------------------------------------------
+// 3D model screenshot capture modal
+// ---------------------------------------------------------------------------
+const showCaptureModal = ref(false);
+
+const openCaptureModal = () => {
+  showCaptureModal.value = true;
+};
+
+const handleCaptureClose = () => {
+  showCaptureModal.value = false;
+};
+
+const handleCapture = async (file: File) => {
+  screenshotFile.value = file;
+  screenshotPreviewUrl.value = URL.createObjectURL(file);
+  try {
+    const assetId = await saveAsset(file);
+    formData.value.screenshotAssetId = assetId;
+    addToast('3Dから撮影した画像を設定しました', file.name, 'success', 2000);
+  } catch (e) {
+    addToast('保存エラー', '画像の一時保存に失敗しました', 'error');
+  }
+};
+
+// ---------------------------------------------------------------------------
+// AI: スクリーンショットから作品名・説明を生成
+// ---------------------------------------------------------------------------
+/** 現在登録されているスクリーンショットを File で取得する（AI 送信用） */
+async function getScreenshotFileForAi(): Promise<File | null> {
+  if (screenshotFile.value) return screenshotFile.value;
+  const assetId = formData.value.screenshotAssetId;
+  if (!assetId) return null;
+  const blob = await getAsset(assetId);
+  if (!blob) return null;
+  const type = blob.type || 'image/png';
+  const ext = type.includes('png') ? 'png' : type.includes('webp') ? 'webp' : 'jpg';
+  return new File([blob], `screenshot.${ext}`, { type });
+}
+
+const handleGenerateFromImage = async () => {
+  const useVertex = isVertexAiAvailable();
+  if (!useVertex && !aiApiKey.value.trim()) {
+    addToast('APIキーを入力してください', '画像分析用のキーを入力するか、Vertex AI を設定してください。', 'warning');
+    return;
+  }
+
+  const imageFile = await getScreenshotFileForAi();
+  if (!imageFile) {
+    addToast('スクリーンショットがありません', '先にスクリーンショットをアップロードしてください。', 'warning');
+    return;
+  }
+
+  isGeneratingAi.value = true;
+  try {
+    const result = useVertex
+      ? await generateMinecraftDataViaVertex(imageFile)
+      : await generateMinecraftData(imageFile, aiApiKey.value.trim());
+
+    formData.value.title = result.title;
+    formData.value.description = result.description;
+    if (!useVertex) {
+      localStorage.setItem(STORAGE_KEY_API_KEY, aiApiKey.value);
+    }
+    addToast('文を生成しました', 'AIで作品名と説明を生成しました。', 'success');
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '画像の分析に失敗しました。';
+    addToast('AIで文生成に失敗しました', message, 'error');
+  } finally {
+    isGeneratingAi.value = false;
+  }
 };
 
 // ---------------------------------------------------------------------------
@@ -341,17 +427,50 @@ const executeSave = async () => {
                 </div>
 
                 <div class="form-group">
-                  <label for="minecraft-date" class="form-label">作成日 <span class="required">*</span></label>
-                  <input
-                    id="minecraft-date"
-                    v-model="formData.createdAt"
-                    type="date"
-                    class="form-input"
-                    required
-                  />
+                  <label for="minecraft-description" class="form-label">作品の説明</label>
+                  <textarea
+                    id="minecraft-description"
+                    v-model="formData.description"
+                    class="form-textarea"
+                    rows="4"
+                    placeholder="作品のポイントやがんばったところ..."
+                  ></textarea>
                 </div>
 
-                <div class="form-group">
+                <!-- AI: スクリーンショットから作品名・説明を生成（CardGenerationForm の vertex-text-section と同様） -->
+                <div class="vertex-text-section">
+                  <h4 class="vertex-section-title">✨ AIで文を生成</h4>
+                  <p class="vertex-section-desc">
+                    登録したスクリーンショットをAIが分析して、作品名と作品の説明を生成します。
+                  </p>
+                  <p v-if="!screenshotPreviewUrl && !formData.screenshotAssetId" class="vertex-section-hint">
+                    スクリーンショットをアップロードすると、AIが文を作れます。
+                  </p>
+                  <template v-else>
+                    <div v-if="!isVertexAiAvailable()" class="form-group">
+                      <label for="minecraft-ai-api-key" class="form-label">AI用キー（管理者向け）</label>
+                      <input
+                        id="minecraft-ai-api-key"
+                        v-model="aiApiKey"
+                        type="password"
+                        class="form-input"
+                        placeholder="画像分析に使うキーをここに入力"
+                        autocomplete="off"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      :disabled="isGeneratingAi"
+                      class="vertex-generate-btn"
+                      @click="handleGenerateFromImage"
+                    >
+                      <span v-if="isGeneratingAi" class="loader"></span>
+                      {{ isGeneratingAi ? '生成中...' : '✨画像から生成する' }}
+                    </button>
+                  </template>
+                </div>
+
+                <div class="form-group form-group--spaced-top">
                   <label for="minecraft-makecode" class="form-label">MakeCode のリンク（URL）</label>
                   <input
                     id="minecraft-makecode"
@@ -363,14 +482,14 @@ const executeSave = async () => {
                 </div>
 
                 <div class="form-group">
-                  <label for="minecraft-description" class="form-label">作品の説明</label>
-                  <textarea
-                    id="minecraft-description"
-                    v-model="formData.description"
-                    class="form-textarea"
-                    rows="4"
-                    placeholder="作品のポイントやがんばったところ..."
-                  ></textarea>
+                  <label for="minecraft-date" class="form-label">作成日 <span class="required">*</span></label>
+                  <input
+                    id="minecraft-date"
+                    v-model="formData.createdAt"
+                    type="date"
+                    class="form-input"
+                    required
+                  />
                 </div>
               </div>
 
@@ -409,6 +528,16 @@ const executeSave = async () => {
                       <p class="primary-text">画像をドロップ</p>
                     </div>
                   </DropZone>
+                  <button
+                    v-if="confirmModelUrl"
+                    type="button"
+                    class="capture-from-model-btn"
+                    :class="{ 'capture-from-model-btn-primary': !screenshotPreviewUrl }"
+                    @click="openCaptureModal"
+                  >
+                    <span class="material-symbols-outlined capture-btn-icon">photo_camera</span>
+                    {{ screenshotPreviewUrl ? '3Dモデルからやりなおす' : '3Dモデルから撮影' }}
+                  </button>
                 </div>
               </div>
             </div>
@@ -641,6 +770,13 @@ const executeSave = async () => {
         </div>
       </Transition>
     </div>
+
+    <CaptureScreenshotModal
+      :show="showCaptureModal"
+      :model-url="confirmModelUrl ?? ''"
+      @close="handleCaptureClose"
+      @capture="handleCapture"
+    />
   </div>
 </template>
 
@@ -762,6 +898,72 @@ const executeSave = async () => {
   margin: 0 0 2rem 0;
 }
 
+/* Vertex AI / 画像から文生成セクション（CardGenerationForm と統一） */
+.vertex-text-section {
+  padding: 1.25rem;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border-radius: 12px;
+  border: 1px solid #a7f3d0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.vertex-section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #047857;
+  margin: 0 0 0.25rem 0;
+}
+
+.vertex-section-desc {
+  font-size: 0.8125rem;
+  color: #065f46;
+  margin: 0 0 0.5rem 0;
+  line-height: 1.4;
+}
+
+.vertex-section-hint {
+  font-size: 0.8125rem;
+  color: #047857;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.vertex-generate-btn {
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: opacity 0.2s;
+}
+
+.vertex-generate-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.loader {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: vertex-loader-rotation 0.8s linear infinite;
+}
+
+@keyframes vertex-loader-rotation {
+  to { transform: rotate(360deg); }
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -779,6 +981,10 @@ const executeSave = async () => {
   flex-direction: column;
   gap: 0.5rem;
   margin-bottom: 1.5rem;
+}
+
+.form-group--spaced-top {
+  margin-top: 1.5rem;
 }
 
 .form-label {
@@ -832,6 +1038,45 @@ const executeSave = async () => {
   max-width: 100%;
   max-height: 150px;
   object-fit: contain;
+}
+
+.capture-from-model-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 2px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.capture-from-model-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.capture-from-model-btn-primary {
+  border-color: #3b82f6;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  color: #1d4ed8;
+}
+
+.capture-from-model-btn-primary:hover {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  border-color: #2563eb;
+  color: #1e40af;
+}
+
+.capture-btn-icon {
+  font-size: 1.125rem;
 }
 
 .submit-button {

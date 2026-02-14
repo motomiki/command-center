@@ -6,6 +6,7 @@ Cloud Functions (第2世代) - Vertex AI Gemini 連携。
 - prompt_optimize: 画像生成用の英語プロンプトを最適化
 - student_icon: 生徒アバター（PFP）画像を生成
 - card_image: カード用イラスト画像を生成（プロンプト最適化＋画像生成）
+- minecraft_analyze: Minecraft スクリーンショットから作品名・説明を生成
 """
 import base64
 import json
@@ -285,6 +286,58 @@ def _generate_student_icon(client, body: dict) -> dict:
     )
 
 
+MINECRAFT_ANALYZE_PROMPT = """この画像は、小学生が作った Minecraft（マインクラフト）の作品のスクリーンショットです。
+画像の内容を分析し、次の 2 つを日本語で出力してください。小学生が読んでワクワクする、やさしくて短い表現にしてください。
+
+1. **title**: 作品のタイトル（10文字程度まで。カタカナ・ひらがな中心で、かっこいい・かわいい名前）
+2. **description**: 作品の説明（1文、または簡潔な2文まで。ブロックの色・形・スケールなど、見た目のポイントをほめるような文）
+
+出力は必ず次の JSON 形式のみにしてください。他の説明や改行は入れないでください。
+{"title":"ここにタイトル","description":"ここに説明文"}"""
+
+
+def _minecraft_analyze(client, body: dict) -> dict:
+    """
+    Minecraft スクリーンショットを分析し、作品名と説明文を生成する。
+    リクエスト: image: { mimeType, data } (data は base64 文字列)
+    返却: {"title": "...", "description": "..."}
+    """
+    from google.genai.types import Part
+
+    image = body.get("image") or {}
+    mime_type = (image.get("mimeType") or "image/png").strip()
+    data_b64 = image.get("data")
+    if not data_b64:
+        raise ValueError("image.data is required for minecraft_analyze")
+    try:
+        image_bytes = base64.b64decode(data_b64)
+    except Exception as e:
+        raise ValueError(f"Invalid base64 in image.data: {e!s}") from e
+
+    response = client.models.generate_content(
+        model=GEMINI_MODEL,
+        contents=[
+            Part.from_bytes(data=image_bytes, mime_type=mime_type),
+            MINECRAFT_ANALYZE_PROMPT,
+        ],
+    )
+    text = _get_response_text(response).strip()
+    if "```" in text:
+        text = re.sub(r"```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```", "", text)
+    try:
+        data = json.loads(text)
+        return {
+            "title": (data.get("title") or "").strip() or "Minecraft作品",
+            "description": (data.get("description") or "").strip() or "ブロックでつくった作品です。",
+        }
+    except json.JSONDecodeError:
+        return {
+            "title": "Minecraft作品",
+            "description": text[:200] if text else "ブロックでつくった作品です。",
+        }
+
+
 def handle_request(request):
     """
     HTTP トリガーエントリポイント。
@@ -314,7 +367,7 @@ def handle_request(request):
         return (
             json.dumps(
                 {
-                    "error": "Missing 'action'. Use 'card_text', 'prompt_optimize', 'student_icon', or 'card_image'."
+                    "error": "Missing 'action'. Use 'card_text', 'prompt_optimize', 'student_icon', 'card_image', or 'minecraft_analyze'."
                 }
             ),
             400,
@@ -363,6 +416,16 @@ def handle_request(request):
             except ValueError as e:
                 return (json.dumps({"error": str(e)}), 400, headers)
             except RuntimeError as e:
+                return (json.dumps({"error": str(e)}), 500, headers)
+
+        if action == "minecraft_analyze":
+            try:
+                result = _minecraft_analyze(client, body)
+                return (json.dumps(result), 200, headers)
+            except ValueError as e:
+                return (json.dumps({"error": str(e)}), 400, headers)
+            except Exception as e:
+                logging.exception("minecraft_analyze failed: %s", e)
                 return (json.dumps({"error": str(e)}), 500, headers)
 
         return (
