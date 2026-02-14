@@ -47,7 +47,7 @@ const isGeneratingImage = ref(false);
 const isGeneratingText = ref(false);
 
 /** Vertex AI「AIで文生成」用: 活動の種類 */
-const cardActivityType = ref<'typing' | 'minecraft'>('typing');
+const cardActivityType = ref<'typing' | 'minecraft' | 'fieldwork'>('typing');
 /** Vertex AI「AIで文生成」用: 補足（例: WPM 30 達成） */
 const cardTextContext = ref('');
 
@@ -61,11 +61,13 @@ const artStyle = ref<ArtStyleKey>('fantasy');
 
 const rarities: Rarity[] = ['C', 'U', 'R', 'RR', 'SR', 'UR'];
 const modelOptions: { value: AIModelType; label: string }[] = [
-  { value: 'flash', label: 'Gemini 2.5 Flash Image (Dev)' },
-  { value: 'pro', label: 'Gemini 3 Pro Image (Prod)' },
+  { value: 'flash', label: '標準（高速生成）' },
+  { value: 'pro', label: '高画質（品質優先）' },
 ];
 
+// 絵本→ファンタジー→アニメ/漫画→絵画→ドット絵（子ども向け・物語寄りからゲーム風へ）
 const artStyleOptions: { value: ArtStyleKey; label: string; icon: string }[] = [
+  { value: 'picturebook', label: '絵本', icon: '📖' },
   { value: 'fantasy', label: 'ファンタジー', icon: '🏰' },
   { value: 'anime', label: 'アニメ', icon: '✨' },
   { value: 'manga', label: '漫画', icon: '💬' },
@@ -104,7 +106,7 @@ onMounted(async () => {
 const handleGenerateImage = async () => {
   const useVertex = isVertexAiAvailable();
   if (!useVertex && !apiKey.value.trim()) {
-    addToast('APIキーを入力してください', 'Gemini API Key を入力してから画像を生成できます。', 'warning');
+    addToast('APIキーを入力してください', 'AI画像用キーを入力してから画像を生成できます。', 'warning');
     return;
   }
   if (!formData.value.title.trim() && !formData.value.description.trim()) {
@@ -164,7 +166,7 @@ const handleGenerateText = async () => {
     formData.value.description = result.description
       ? `${result.description}${result.praiseWords ? ` ${result.praiseWords}` : ''}`
       : result.praiseWords;
-    addToast('文を生成しました', 'Vertex AI でカードの文を生成しました。', 'success');
+    addToast('文を生成しました', 'AIでカードの文を生成しました。', 'success');
   } catch (err) {
     const message = err instanceof Error ? err.message : '文の生成に失敗しました。';
     addToast('AIで文生成に失敗しました', message, 'error');
@@ -198,7 +200,7 @@ const handleImageFilesDropped = async (files: File[]) => {
     formData.value.imageAssetId = assetId;
     addToast('画像読み込み完了', file.name, 'success', 2000);
   } catch (e) {
-    addToast('保存エラー', '画像の一時保存に失敗しました', 'error');
+    addToast('保存エラー', '画像の保存に失敗しました。もう一度お試しください。', 'error');
   }
 };
 
@@ -368,9 +370,9 @@ const handleFinalSubmit = async () => {
 
           <!-- Vertex AI: カード用テキスト生成（必須2 充足） -->
           <div v-if="isVertexAiAvailable()" class="vertex-text-section">
-            <h4 class="vertex-section-title">✨ AIで文を生成（Vertex AI）</h4>
+            <h4 class="vertex-section-title">✨ AIで文を生成</h4>
             <p class="vertex-section-desc">
-              活動の種類と補足を選ぶと、カード名とコメントのたたき台を生成します。
+              活動の種類と補足を選ぶと、カード名とコメントの下書きを生成します。
             </p>
             <div class="form-group">
               <span class="form-label">活動の種類</span>
@@ -389,16 +391,24 @@ const handleFinalSubmit = async () => {
                 >
                   Minecraft
                 </button>
+                <button
+                  type="button"
+                  :class="['activity-type-btn', { active: cardActivityType === 'fieldwork' }]"
+                  @click="cardActivityType = 'fieldwork'"
+                >
+                  フィールドワーク
+                </button>
               </div>
             </div>
             <div class="form-group">
               <label for="card-text-context" class="form-label">補足（任意）</label>
+              <p class="form-hint">その日の成果や出来事を短く書くと、AIがそれに合わせた文を作ります。</p>
               <input
                 id="card-text-context"
                 v-model="cardTextContext"
                 type="text"
                 class="form-input"
-                placeholder="例: WPM 30 達成、初めての建築"
+                placeholder="例: タイピング30文字/分達成、初めての建築"
               />
             </div>
             <button
@@ -419,13 +429,13 @@ const handleFinalSubmit = async () => {
               カード名とコメントの内容から、AIがイラストのイメージを読み取って生成します。
             </p>
             <div v-if="!isVertexAiAvailable()" class="form-group">
-              <label for="gemini-api-key" class="form-label">Gemini API Key</label>
+              <label for="gemini-api-key" class="form-label">AI画像用キー（管理者向け）</label>
               <input
                 id="gemini-api-key"
                 v-model="apiKey"
                 type="password"
                 class="form-input"
-                placeholder="Google AI Studioで取得したキー"
+                placeholder="画像生成に使うキーをここに入力"
                 autocomplete="off"
               />
             </div>
@@ -488,6 +498,7 @@ const handleFinalSubmit = async () => {
 
           <div class="form-group">
             <label for="card-rarity" class="form-label">レアリティ</label>
+            <p class="form-hint">C=ふつう ～ UR=とてもレア。右ほどレア度が高いです。</p>
             <div class="rarity-selector">
               <button
                 v-for="rarity in rarities"
@@ -616,6 +627,13 @@ const handleFinalSubmit = async () => {
   font-size: 0.875rem;
   font-weight: 600;
   color: #1e3a8a;
+}
+
+.form-hint {
+  font-size: 0.8125rem;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.4;
 }
 
 .required {

@@ -1,11 +1,19 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 
 const props = defineProps<{
   accept?: string;
   maxSizeMB?: number;
   multiple?: boolean;
 }>();
+
+/** ユーザー向けの形式表示（image/* は JPEG/PNG/WebP などと表記） */
+const acceptDisplayLabel = computed(() => {
+  const a = props.accept?.trim();
+  if (!a) return '';
+  if (a === 'image/*') return 'JPEG、PNG、WebPなど';
+  return a;
+});
 
 const emit = defineEmits<{
   (e: 'files-dropped', files: File[]): void;
@@ -138,8 +146,8 @@ const openFileDialog = () => {
         </slot>
       </div>
 
-      <div v-if="props.accept" class="meta-text">
-        形式: {{ props.accept }}
+      <div v-if="acceptDisplayLabel" class="meta-text">
+        形式: {{ acceptDisplayLabel }}
       </div>
       <div v-if="props.maxSizeMB" class="meta-text">
         最大: {{ props.maxSizeMB }}MB

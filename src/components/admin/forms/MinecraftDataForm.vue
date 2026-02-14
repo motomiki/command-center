@@ -322,7 +322,7 @@ const executeSave = async () => {
         <!-- Step 1: 入力フォーム            -->
         <!-- ============================== -->
         <div v-if="currentStep === 1" key="form" class="form-view">
-          <h3 class="form-title">🎮 Minecraft成果物登録</h3>
+          <h3 class="form-title">🎮 Minecraft 作品の登録</h3>
           <p class="form-description">生徒のMinecraft作品を登録してください</p>
 
           <form @submit.prevent="handleSubmit" class="form">
@@ -352,13 +352,13 @@ const executeSave = async () => {
                 </div>
 
                 <div class="form-group">
-                  <label for="minecraft-makecode" class="form-label">MakeCode URL</label>
+                  <label for="minecraft-makecode" class="form-label">MakeCode のリンク（URL）</label>
                   <input
                     id="minecraft-makecode"
                     v-model="formData.makeCodeUrl"
                     type="url"
                     class="form-input"
-                    placeholder="https://..."
+                    placeholder="https://makecode.com/..."
                   />
                 </div>
 
@@ -376,7 +376,7 @@ const executeSave = async () => {
 
               <div class="upload-section">
                 <div class="form-group">
-                  <label class="form-label">3Dモデル (.glb)</label>
+                  <label class="form-label">3Dモデル（.glb ファイル）</label>
                   <DropZone
                     accept=".glb,model/gltf-binary"
                     :max-size-m-b="50"
@@ -388,8 +388,8 @@ const executeSave = async () => {
                       <span class="file-status">アップロード完了</span>
                     </div>
                     <div v-else>
-                      <p class="primary-text">3Dモデルをドロップ</p>
-                      <p class="secondary-text">またはクリック (.glb)</p>
+                      <p class="primary-text">ここに .glb ファイルをドロップ</p>
+                      <p class="secondary-text">またはクリックして選ぶ</p>
                     </div>
                   </DropZone>
                 </div>
@@ -444,7 +444,7 @@ const executeSave = async () => {
               />
               <div v-else class="confirm-no-assets">
                 <span class="confirm-no-assets-icon">📦</span>
-                <p>3Dモデル・スクリーンショットは未登録です</p>
+                <p>3Dモデルやスクリーンショットはまだありません</p>
               </div>
             </div>
 
@@ -458,7 +458,7 @@ const executeSave = async () => {
                 <dd class="confirm-meta-value">{{ formData.createdAt || '—' }}</dd>
               </div>
               <div class="confirm-meta-row">
-                <dt class="confirm-meta-label">MakeCode URL</dt>
+                <dt class="confirm-meta-label">MakeCode のリンク</dt>
                 <dd class="confirm-meta-value">
                   <a
                     v-if="formData.makeCodeUrl.trim()"
@@ -515,7 +515,7 @@ const executeSave = async () => {
         <!-- ============================== -->
         <div v-else key="card-preview" class="card-preview-view">
           <h3 class="form-title">🃏 トレーディングカード プレビュー</h3>
-          <p class="form-description">カードのレアリティや内容をカスタマイズできます</p>
+          <p class="form-description">レアリティや、カードにのるタイトル・説明をここで変えられます</p>
 
           <div class="card-preview-layout">
             <!-- 左: カードプレビュー -->
@@ -530,7 +530,7 @@ const executeSave = async () => {
                   :id="previewCardData.id"
                 />
               </div>
-              <p class="card-preview-hint">カードにマウスを乗せると光沢エフェクトが見られます</p>
+              <p class="card-preview-hint">マウスをのせると、カードがひかって見えるよ</p>
             </div>
 
             <!-- 右: カスタマイズコントロール -->
@@ -573,7 +573,7 @@ const executeSave = async () => {
                   v-model="cardFormData.title"
                   type="text"
                   class="form-input"
-                  placeholder="カードに表示するタイトル"
+                  placeholder="例: むらさきのせかい"
                 />
               </div>
 
@@ -588,7 +588,7 @@ const executeSave = async () => {
                   v-model="cardFormData.description"
                   class="form-textarea"
                   rows="3"
-                  placeholder="カードに表示する説明文..."
+                  placeholder="例: ブロックでお城をつくりました"
                 ></textarea>
               </div>
 
@@ -608,8 +608,8 @@ const executeSave = async () => {
                   <span class="card-info-value">{{ formData.createdAt }}</span>
                 </div>
                 <div class="card-info-row">
-                  <span class="card-info-label">画像</span>
-                  <span class="card-info-value">{{ confirmScreenshotUrl ? 'スクリーンショット使用' : 'デフォルト画像' }}</span>
+                  <span class="card-info-label">カードの絵</span>
+                  <span class="card-info-value">{{ confirmScreenshotUrl ? '作品のスクリーンショット' : 'デフォルトの絵' }}</span>
                 </div>
               </div>
             </div>
@@ -686,10 +686,10 @@ const executeSave = async () => {
 }
 
 .step-active .step-circle {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  color: white;
-  border-color: #3b82f6;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+  background: linear-gradient(135deg, #eab308, #ca8a04);
+  color: #1c1917;
+  border-color: #eab308;
+  box-shadow: 0 2px 12px rgba(234, 179, 8, 0.4);
 }
 
 .step-completed .step-circle {
@@ -710,7 +710,7 @@ const executeSave = async () => {
 }
 
 .step-active .step-label {
-  color: #3b82f6;
+  color: #a16207;
 }
 
 .step-completed .step-label {
@@ -734,7 +734,7 @@ const executeSave = async () => {
   left: 0;
   height: 100%;
   width: var(--progress, 0%);
-  background: linear-gradient(90deg, #10b981, #3b82f6);
+  background: linear-gradient(90deg, #10b981, #eab308);
   transition: width 0.4s ease;
 }
 

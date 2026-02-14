@@ -6,7 +6,7 @@
 import type { AIModelType, AvatarStyleType } from '@/services/aiService';
 
 /** 画風キー（CardGeneratorService.ArtStyleKey と一致） */
-type CardArtStyleKey = 'fantasy' | 'anime' | 'manga' | 'painting' | 'pixel';
+type CardArtStyleKey = 'picturebook' | 'fantasy' | 'anime' | 'manga' | 'painting' | 'pixel';
 
 const BASE_URL = import.meta.env.VITE_VERTEX_AI_FUNCTION_URL ?? '';
 
@@ -27,11 +27,11 @@ export function isVertexAiAvailable(): boolean {
 
 /**
  * カード用テキスト（タイトル・コメント・褒め言葉）を Vertex AI 経由で生成する。
- * @param activityType - 活動の種類（typing | minecraft）
+ * @param activityType - 活動の種類（typing | minecraft | fieldwork）
  * @param context - 補足（例: "WPM 30 達成"）
  */
 export async function generateCardText(
-  activityType: 'typing' | 'minecraft',
+  activityType: 'typing' | 'minecraft' | 'fieldwork',
   context: string = ''
 ): Promise<CardTextResult> {
   if (!isVertexAiAvailable()) {

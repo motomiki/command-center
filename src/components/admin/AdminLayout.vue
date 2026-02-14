@@ -26,31 +26,41 @@ const handleLogout = async () => {
     <header class="admin-header">
       <div class="header-content">
         <div class="header-left">
-          <h1 class="admin-title">📊 管理画面</h1>
-          <p class="admin-subtitle">Campus Club Dashboard</p>
+          <h1 class="admin-title">
+            <span class="title-icon" aria-hidden="true">🚀</span>
+            <span class="title-text">コマンドセンター</span>
+            <span class="title-sparkle" aria-hidden="true">✦</span>
+          </h1>
+          <p class="admin-subtitle">
+            <span class="subtitle-badge">Campus Club</span>
+            みんなのがんばりを ここから見守ろう！
+          </p>
         </div>
         <div class="header-right">
+          <!-- 一般ユーザーには不要のため非表示。必要な時はコメントを外す -->
+          <!--
           <RouterLink
             to="/admin/supabase-test"
-            class="supabase-test-link"
-            active-class="active"
+            class="header-btn header-btn--outline"
+            active-class="header-btn--outline-active"
           >
-            🔌 Supabase接続テスト
+            🔌 接続テスト
           </RouterLink>
+          -->
           <button
             @click="handleNavigateToStudent"
-            class="switch-to-student-btn"
-            aria-label="子ども用画面に切り替え"
+            class="header-btn header-btn--primary"
+            aria-label="生徒ホーム画面を表示"
           >
-            👤 子ども用画面
+            🏠 ホームへ
           </button>
           <button
             @click="handleLogout"
-            class="logout-btn"
+            class="header-btn header-btn--danger"
             aria-label="ログアウト"
             :disabled="authStore.loading"
           >
-            {{ authStore.loading ? 'ログアウト中...' : '🚪 ログアウト' }}
+            {{ authStore.loading ? '⏳ ログアウト中...' : '🚪 ログアウト' }}
           </button>
         </div>
       </div>
@@ -112,7 +122,7 @@ const handleLogout = async () => {
 .header-left {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.35rem;
 }
 
 .header-right {
@@ -122,97 +132,168 @@ const handleLogout = async () => {
   flex-wrap: wrap;
 }
 
+/* ── タイトル ── */
 .admin-title {
-  font-size: 1.75rem;
-  font-weight: bold;
-  color: #1e3a8a;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   margin: 0;
+  line-height: 1.2;
 }
 
+.title-icon {
+  display: inline-block;
+  font-size: 1.6rem;
+  animation: float 2.5s ease-in-out infinite;
+}
+
+.title-text {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 40%, #db2777 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 200% 200%;
+  animation: shimmer 4s ease-in-out infinite;
+}
+
+.title-sparkle {
+  font-size: 0.9rem;
+  color: #f59e0b;
+  animation: sparkle-pulse 2s ease-in-out infinite;
+}
+
+/* ── サブタイトル ── */
 .admin-subtitle {
-  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
   color: #64748b;
   margin: 0;
+  font-weight: 500;
 }
 
-.supabase-test-link {
-  padding: 0.5rem 1rem;
+.subtitle-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  background: linear-gradient(135deg, #e0e7ff, #ede9fe);
+  color: #4f46e5;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* ── キーフレーム ── */
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-2px) rotate(-3deg); }
+  75% { transform: translateY(1px) rotate(2deg); }
+}
+
+@keyframes shimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes sparkle-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.2) rotate(180deg); }
+}
+
+/* ── ヘッダーボタン 共通 ── */
+.header-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.625rem 1.125rem;
   min-height: 44px;
-  color: #1e3a8a;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
-  text-decoration: none;
-  border-radius: 8px;
-  transition: background 0.2s ease, color 0.2s ease;
-}
-
-.supabase-test-link:hover {
-  background: rgba(30, 58, 138, 0.08);
-  color: #2563eb;
-}
-
-.supabase-test-link.active {
-  background: rgba(30, 58, 138, 0.12);
-  color: #1d4ed8;
-}
-
-.switch-to-student-btn {
-  padding: 0.875rem 1.5rem;
-  min-height: 44px;
-  min-width: 120px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
   border: none;
   border-radius: 8px;
-  font-size: 0.875rem;
-  font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.header-btn:active {
+  transform: translateY(0);
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .switch-to-student-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+  .header-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
   }
 }
 
-.switch-to-student-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+/* ── アウトラインバリアント（接続テスト） ── */
+.header-btn--outline {
+  background: transparent;
+  color: #475569;
+  border: 1.5px solid #cbd5e1;
 }
 
-.logout-btn {
-  padding: 0.875rem 1.5rem;
-  min-height: 44px;
-  min-width: 120px;
+@media (hover: hover) and (pointer: fine) {
+  .header-btn--outline:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+    color: #334155;
+  }
+}
+
+.header-btn--outline-active {
+  background: #e0e7ff;
+  border-color: #818cf8;
+  color: #4338ca;
+}
+
+/* ── プライマリバリアント（ホームへ） ── */
+.header-btn--primary {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.3);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .header-btn--primary:hover {
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+  }
+}
+
+.header-btn--primary:active {
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.3);
+}
+
+/* ── デンジャーバリアント（ログアウト） ── */
+.header-btn--danger {
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .logout-btn:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.4);
+  .header-btn--danger:hover:not(:disabled) {
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
   }
 }
 
-.logout-btn:disabled {
-  opacity: 0.7;
+.header-btn--danger:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
 }
 
-.logout-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+.header-btn--danger:active {
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);
 }
 
 .admin-main {
@@ -251,12 +332,20 @@ const handleLogout = async () => {
     gap: 1rem;
   }
 
-  .admin-title {
-    font-size: 1.5rem;
+  .title-text {
+    font-size: 1.3rem;
   }
 
-  .switch-to-student-btn,
-  .logout-btn {
+  .title-icon {
+    font-size: 1.3rem;
+  }
+
+  .admin-subtitle {
+    flex-wrap: wrap;
+    font-size: 0.75rem;
+  }
+
+  .header-btn {
     width: 100%;
   }
 

@@ -125,9 +125,9 @@ const handleUpdateIcon = async () => {
       <button
         @click="activeTab = 'minecraft'"
         :class="['tab-button', { active: activeTab === 'minecraft' }]"
-        aria-label="Minecraft成果物登録タブ"
+        aria-label="Minecraft 作品の登録タブ"
       >
-        🎮 Minecraft成果物
+        🎮 Minecraft 作品
       </button>
       <button
         @click="activeTab = 'card'"

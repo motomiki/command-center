@@ -75,7 +75,29 @@
   }, { immediate: true });
 
   const cardImageUrl = computed(() => resolvedImageUrl.value);
-  
+
+  // 画像未設定・読み込み失敗時のプレースホルダー（中央に「？」のSVG）
+  const PLACEHOLDER_SVG =
+    'data:image/svg+xml,' +
+    encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#e2e8f0"/><text x="50" y="50" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="48" fill="#64748b">?</text></svg>'
+    );
+
+  const imageLoadFailed = ref(false);
+  watch(cardImageUrl, () => {
+    imageLoadFailed.value = false;
+  });
+
+  const effectiveImageUrl = computed(() => {
+    if (!cardImageUrl.value) return PLACEHOLDER_SVG;
+    if (imageLoadFailed.value) return PLACEHOLDER_SVG;
+    return cardImageUrl.value;
+  });
+
+  const onImageError = () => {
+    imageLoadFailed.value = true;
+  };
+
   // --- 3D Tilt Logic ---
   const cardRef = ref<HTMLElement | null>(null);
   const rotX = ref(0);
@@ -218,10 +240,11 @@
           <div class="ur-frame-container absolute inset-0 rounded-lg overflow-hidden">
             <!-- Art Image (Z=0) -->
             <img 
-              :src="cardImageUrl" 
+              :src="effectiveImageUrl" 
               :alt="cardTitle" 
               class="ur-art ur-layer-art absolute object-cover"
               loading="lazy"
+              @error="onImageError"
             />
             <!-- Frame Overlay (Z=20px) -->
             <img
@@ -287,10 +310,11 @@
             :class="rarityClasses.mainBorder"
           >
             <img 
-              :src="cardImageUrl" 
+              :src="effectiveImageUrl" 
               :alt="cardTitle"
               class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
               loading="lazy"
+              @error="onImageError"
             />
             <div 
               class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[8px] font-bold border shadow-sm bg-white/90 backdrop-blur-sm"

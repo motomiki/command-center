@@ -45,6 +45,7 @@ function parseRetryAfterSeconds(err: unknown): number | undefined {
 
 /** 絵のタッチ（画風）の選択肢。UIでボタン選択する値と一致させる。 */
 export type ArtStyleKey =
+  | 'picturebook'
   | 'fantasy'
   | 'anime'
   | 'manga'
@@ -53,6 +54,8 @@ export type ArtStyleKey =
 
 /** 画風キー → AIプロンプト用のスタイル説明（テキストLLMへの入力にも使用） */
 const ART_STYLE_PROMPTS: Record<ArtStyleKey, string> = {
+  picturebook:
+    '絵本風、やわらかい線と色、物語の一場面のような構図、子ども向けで親しみやすいイラスト。',
   fantasy:
     'ファンタジー風、魔法や冒険の世界観、温かみのある色彩、子ども向けで夢のあるイラスト。',
   anime:

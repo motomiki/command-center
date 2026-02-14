@@ -28,6 +28,13 @@ npm run dev
 
 管理画面（`/admin`）では、生徒ごとの学習データの入力とカードの発行を行います。
 
+### 管理画面の名称について
+
+ヘッダーでは、単に「管理画面」とせず、**ワクワクと胸が高鳴る**雰囲気を意識した名称を使っています。
+
+- **コマンドセンター** … 先生が「司令塔」として子どもたちの成長を見守るイメージです。ミッションコントロールのような頼もしい響きで、操作する側にも少しのドキドキ感を届けます。
+- **みんなのがんばりを ここから見守ろう！** … サブタイトルでは、システム名「Campus Club」をバッジで示したうえで、**見守る**という温かみのあるメッセージを添えています。データ入力の画面でありながら、「ここからみんなを応援している」という気持ちが伝わるようにしています。
+
 ### ⌨️ タイピングデータの登録
 
 生徒のタイピング練習の結果を入力します。
@@ -49,11 +56,16 @@ npm run dev
 Minecraft 作品に限らず、特別なご褒美や表彰としてカードを自由に発行できます。
 
 - 画像、タイトル、レアリティ（C〜UR）、先生からのコメントを設定可能です。
+- **AIで文生成**（Vertex AI 利用時）: 活動の種類と補足を入力すると、タイトル・コメント・褒め言葉を自動生成できます。
+- **AIで画像生成**: Vertex AI（Cloud Functions）を設定している場合は API キー不要、未設定時は Gemini API キーを入力してカード用イラストを生成できます。絵本・ファンタジー・アニメなど画風を選択可能です。
 - 生成されたカードは、生徒がガチャを回すと排出されます。プレビューでレアリティ演出を確認しながら作成できます。
 
 ### 👥 生徒の追加とAIアイコン生成
 
-管理画面のトップページから新しい生徒を追加できます。同時に AI（Gemini）を使って生徒のアイコンを生成できます。
+管理画面のトップページから新しい生徒を追加できます。同時に AI を使って生徒のアイコンを生成できます。
+
+- **Vertex AI 利用時**: `.env` に `VITE_VERTEX_AI_FUNCTION_URL` を設定していると、API キー入力なしでアイコン生成が利用できます（[docs/VERTEX_AI_SETUP.md](docs/VERTEX_AI_SETUP.md) を参照）。
+- **未設定時**: 画面上で Gemini API キーを入力すると、同じくアイコンを生成できます。
 
 #### 🎨 良いアイコンを作るためのコツ
 
@@ -103,10 +115,11 @@ Minecraft 作品に限らず、特別なご褒美や表彰としてカードを�
 
 ### 動作モード
 
-- **Supabase 設定時**: 認証（メール/パスワード・ロール管理）、profiles / cards / minecraft_works テーブル、Storage（画像・.glb）でデータを共有。管理画面の「🔌 Supabase接続テスト」で同期・接続を確認できます。
+- **Supabase 設定時**: 認証（メール/パスワード・ロール管理）、profiles / cards / minecraft_works テーブル、Storage（画像・.glb）でデータを共有。管理画面の「🔌 接続テスト」で同期・接続を確認できます。
 - **Supabase 未設定時**: スタンドアロンで、ブラウザ内にデータを保存します。
   - **LocalStorage**: 下書き、キャッシュ、モック用のテキストデータなど。
   - **IndexedDB**: 3D モデル（.glb）や画像など容量の大きい資産。`idb://...` スキームでコンポーネント間参照します。
+- **AI 機能**: 生徒アイコン・カードの文生成・カード画像生成は、**Vertex AI**（Cloud Functions の URL を `VITE_VERTEX_AI_FUNCTION_URL` で設定）で API キーなし利用が可能です。未設定時は管理画面で **Gemini API キー** を入力して利用できます。
 
 ### カード枠画像
 
@@ -127,13 +140,16 @@ Minecraft 作品に限らず、特別なご褒美や表彰としてカードを�
 
 1. [Supabase](https://supabase.com/) でプロジェクトを作成する。
 2. プロジェクトの **Settings → API** で **Project URL** と **anon (public) key** をコピーする。
-3. プロジェクトルートに `.env` を作成し、`.env.example` を参考に次の2つを設定する。
-   - `VITE_SUPABASE_URL` … Project URL  
-   - `VITE_SUPABASE_ANON_KEY` … anon key  
+3. プロジェクトルートに `.env` を作成し、`.env.example` を参考に次を設定する。
+   - `VITE_SUPABASE_URL` … Project URL（必須・Supabase 利用時）
+   - `VITE_SUPABASE_ANON_KEY` … anon key（必須・Supabase 利用時）
+   - `VITE_VERTEX_AI_FUNCTION_URL` … Cloud Functions の URL（オプション。未設定時は「AIで文生成」は非表示で、生徒アイコン・カード画像は Gemini API キー入力で利用可能）
 4. 開発サーバーを再起動する（`npm run dev`）。
-5. 管理画面の **「🔌 Supabase接続テスト」** から接続を確認する。
+5. 管理画面の **「🔌 接続テスト」** から Supabase 接続を確認する。
 
 データベースは `supabase/schema.sql` を SQL Editor で実行して作成します。マイグレーションは `supabase/migrations/`、ストレージ設定は `supabase/storage.sql` を参照してください。
+
+**AI（Vertex AI）を利用する場合:** Cloud Functions のデプロイと `VITE_VERTEX_AI_FUNCTION_URL` の設定手順は [docs/VERTEX_AI_SETUP.md](docs/VERTEX_AI_SETUP.md) を参照してください。本番デプロイは [docs/DEPLOY_CLOUD_RUN.md](docs/DEPLOY_CLOUD_RUN.md) を参照してください。
 
 ---
 
